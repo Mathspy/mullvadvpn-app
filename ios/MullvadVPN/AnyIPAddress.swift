@@ -10,7 +10,7 @@ import Foundation
 import Network
 
 /// Container type that holds the `IPAddress`.
-enum AnyIPAddress: Codable, Equatable {
+enum AnyIPAddress: IPAddress, Codable, Equatable, CustomDebugStringConvertible {
     case ipv4(IPv4Address)
     case ipv6(IPv6Address)
 
@@ -27,15 +27,8 @@ enum AnyIPAddress: Codable, Equatable {
         }
     }
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-
-        switch self {
-        case .ipv4(let ipv4Address):
-            try container.encode(ipv4Address, forKey: .ipv4)
-        case .ipv6(let ipv6Address):
-            try container.encode(ipv6Address, forKey: .ipv6)
-        }
+    var rawValue: Data {
+        return ipAddress.rawValue
     }
 
     init(from decoder: Decoder) throws {
@@ -47,6 +40,62 @@ enum AnyIPAddress: Codable, Equatable {
             self = .ipv6(try container.decode(IPv6Address.self, forKey: .ipv6))
         } else {
             throw DecodingError.dataCorruptedError(forKey: .ipv4, in: container, debugDescription: "Invalid AnyIPAddress representation")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        switch self {
+        case .ipv4(let ipv4Address):
+            try container.encode(ipv4Address, forKey: .ipv4)
+        case .ipv6(let ipv6Address):
+            try container.encode(ipv6Address, forKey: .ipv6)
+        }
+    }
+
+    init?(_ rawValue: Data, _ interface: NWInterface?) {
+        if let ipv4Address = IPv4Address(rawValue, interface) {
+            self = .ipv4(ipv4Address)
+        } else if let ipv6Address = IPv6Address(rawValue, interface) {
+            self = .ipv6(ipv6Address)
+        } else {
+            return nil
+        }
+    }
+
+    init?(_ string: String) {
+        if let ipv4Address = IPv4Address(string) {
+            self = .ipv4(ipv4Address)
+        } else if let ipv6Address = IPv6Address(string) {
+            self = .ipv6(ipv6Address)
+        } else {
+            return nil
+        }
+    }
+
+    var interface: NWInterface? {
+        return ipAddress.interface
+    }
+
+    var isLoopback: Bool {
+        return ipAddress.isLoopback
+    }
+
+    var isLinkLocal: Bool {
+        return ipAddress.isLinkLocal
+    }
+
+    var isMulticast: Bool {
+        return ipAddress.isMulticast
+    }
+
+    var debugDescription: String {
+        switch self {
+        case .ipv4(let ipv4Address):
+            return "\(ipv4Address)"
+        case .ipv6(let ipv6Address):
+            return "\(ipv6Address)"
         }
     }
 }
