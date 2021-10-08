@@ -14,9 +14,6 @@ class SettingsCell: BasicTableViewCell {
     let titleLabel = UILabel()
     let detailTitleLabel = UILabel()
 
-    private let preferredMargins = UIMetrics.settingsCellLayoutMargins
-    private var appDidBecomeActiveObserver: NSObjectProtocol?
-
     var isEnabled: Bool = true {
         didSet {
             let opacity = isEnabled ? 1 : Self.disabledCellOpacity
@@ -31,8 +28,6 @@ class SettingsCell: BasicTableViewCell {
         tintColor = .white
         backgroundView?.backgroundColor = UIColor.Cell.backgroundColor
         selectedBackgroundView?.backgroundColor = UIColor.Cell.selectedAltBackgroundColor
-
-        contentView.layoutMargins = preferredMargins
         separatorInset = .zero
 
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -52,6 +47,8 @@ class SettingsCell: BasicTableViewCell {
         contentView.addSubview(titleLabel)
         contentView.addSubview(detailTitleLabel)
 
+        setLayoutMargins()
+
         NSLayoutConstraint.activate([
             titleLabel.leadingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.leadingAnchor),
             titleLabel.topAnchor.constraint(equalTo: contentView.layoutMarginsGuide.topAnchor),
@@ -69,6 +66,12 @@ class SettingsCell: BasicTableViewCell {
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+
+        setLayoutMargins()
     }
 
     override func didAddSubview(_ subview: UIView) {
@@ -90,6 +93,14 @@ class SettingsCell: BasicTableViewCell {
         }
 
         updateDisclosureViewTintColor()
+    }
+
+    private func setLayoutMargins() {
+        // Set layout margins for standard acceessories added into the cell (reorder control, etc..)
+        layoutMargins = UIMetrics.settingsCellLayoutMargins
+
+        // Set layout margins for cell content
+        contentView.layoutMargins = UIMetrics.settingsCellLayoutMargins
     }
 
     /// For some reason the `tintColor` is not applied to standard accessory views.
