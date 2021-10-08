@@ -30,15 +30,18 @@ class SettingsSwitchCell: SettingsCell {
         fatalError("init(coder:) has not been implemented")
     }
 
+    func setEnabled(_ isEnabled: Bool) {
+        switchContainer.isEnabled = isEnabled
+    }
+
     func setOn(_ isOn: Bool, animated: Bool) {
         switchContainer.control.setOn(isOn, animated: animated)
     }
 
-    override var isEnabled: Bool {
-        didSet {
-            switchContainer.controlOpacity = isEnabled ? 1 : Self.disabledCellOpacity
-            switchContainer.control.isEnabled = isEnabled
-        }
+    override func prepareForReuse() {
+        super.prepareForReuse()
+
+        switchContainer.isEnabled = true
     }
 
     // MARK: - Actions
