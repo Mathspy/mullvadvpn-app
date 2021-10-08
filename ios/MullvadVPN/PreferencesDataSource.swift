@@ -20,12 +20,14 @@ struct PreferencesDataModel: Equatable {
     var enableCustomDNS: Bool
     var customDNSDomains: [String]
 
+    var dnsDomainInput: String = ""
+
     init(from dnsSettings: DNSSettings = DNSSettings()) {
         blockAdvertising = dnsSettings.blockAdvertising
         blockTracking = dnsSettings.blockTracking
         enableCustomDNS = dnsSettings.enableCustomDNS
-        customDNSDomains = dnsSettings.customDNSDomains.map { addr in
-            return "\(addr.ipAddress)"
+        customDNSDomains = dnsSettings.customDNSDomains.map { ipAddress in
+            return "\(ipAddress)"
         }
     }
 
@@ -34,16 +36,14 @@ struct PreferencesDataModel: Equatable {
         dnsSettings.blockAdvertising = blockAdvertising
         dnsSettings.blockTracking = blockTracking
         dnsSettings.enableCustomDNS = enableCustomDNS
-        dnsSettings.customDNSDomains = customDNSDomains.compactMap { addrString in
-            if let ipv4Address = IPv4Address(addrString) {
-                return .ipv4(ipv4Address)
-            } else if let ipv6Address = IPv6Address(addrString) {
-                return .ipv6(ipv6Address)
-            } else {
-                return nil
-            }
+        dnsSettings.customDNSDomains = customDNSDomains.compactMap { ipAddressString in
+            return AnyIPAddress(ipAddressString)
         }
         return dnsSettings
+    }
+
+    func isValidDNSDomainForVisualPresentation(_ string: String) -> Bool {
+        return string.isEmpty || AnyIPAddress(string) != nil
     }
 
     var canEnableCustomDNS: Bool {
@@ -56,29 +56,30 @@ struct PreferencesDataModel: Equatable {
 }
 
 class PreferencesDataSource: NSObject, UITableViewDataSource, UITableViewDelegate {
-    struct ReuseIdentifiers {
-        static let switchCellIdentifier = "switchCell"
-        static let dnsEntryCellIdentifier = "dnsEntryCell"
-        static let customDNSFooterIdentifier = "customDNSFooter"
+    enum ReuseIdentifiers: String {
+        case editableToggle
+        case toggle
+        case dnsServer
+        case editableDNSServer
+        case customDNSFooter
     }
 
-    enum Section: CaseIterable {
+    enum Section {
         case mullvadDNS
         case customDNS
     }
 
-    enum Item {
+    enum Item: Hashable {
         case blockAdvertising
         case blockTracking
         case useCustomDNS
-        case customDNSEntry
+        case addDNSEntry
+        case dnsEntry(_ index: Int)
     }
 
+    var isEditing = false
+
     var sections: [Section] = [.mullvadDNS, .customDNS]
-    var items: [Section: [Item]] = [
-        .mullvadDNS: [.blockAdvertising, .blockTracking],
-        .customDNS: [.useCustomDNS]
-    ]
 
     var dataModel = PreferencesDataModel()
 
@@ -94,15 +95,16 @@ class PreferencesDataSource: NSObject, UITableViewDataSource, UITableViewDelegat
     }
 
     func registerCells() {
-        tableView?.register(SettingsSwitchCell.self, forCellReuseIdentifier: ReuseIdentifiers.switchCellIdentifier)
-        
-        tableView?.register(SettingsDNSTextCell.self, forCellReuseIdentifier: ReuseIdentifiers.dnsEntryCellIdentifier)
-
+        tableView?.register(SettingsSwitchCell.self, forCellReuseIdentifier: ReuseIdentifiers.editableToggle.rawValue)
+        tableView?.register(SettingsDNSTextCell.self, forCellReuseIdentifier: ReuseIdentifiers.editableDNSServer.rawValue)
+        tableView?.register(SettingsDNSServerAddressCell.self, forCellReuseIdentifier: ReuseIdentifiers.dnsServer.rawValue)
+        tableView?.register(SettingsStaticToggleCell.self, forCellReuseIdentifier: ReuseIdentifiers.toggle.rawValue)
         tableView?.register(EmptyTableViewHeaderFooterView.self, forHeaderFooterViewReuseIdentifier: EmptyTableViewHeaderFooterView.reuseIdentifier)
-
-        tableView?.register(SettingsStaticTextFooterView.self, forHeaderFooterViewReuseIdentifier: ReuseIdentifiers.customDNSFooterIdentifier)
+        tableView?.register(SettingsStaticTextFooterView.self, forHeaderFooterViewReuseIdentifier: ReuseIdentifiers.customDNSFooter.rawValue)
 
     }
+
+    // MARK: - UITableViewDataSource
 
     func numberOfSections(in tableView: UITableView) -> Int {
         return sections.count
@@ -111,15 +113,64 @@ class PreferencesDataSource: NSObject, UITableViewDataSource, UITableViewDelegat
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         let sectionObject = sections[section]
 
-        return items[sectionObject]!.count
+        return makeItems(for: sectionObject, dataModel: dataModel).count
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let sectionObject = sections[indexPath.section]
-        let item = items[sectionObject]![indexPath.row]
+        let sectionItems = makeItems(for: sectionObject, dataModel: dataModel)
+        let item = sectionItems[indexPath.row]
 
-        return cellForItem(item, in: tableView, at: indexPath)
+        return dequeueCellForItem(item, in: tableView, at: indexPath)
     }
+
+    func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+        // Disable swipe to delete when not editing the table view
+        guard isEditing else { return false }
+
+        let item = mapIndexPathToItem(indexPath)
+
+        switch item {
+        case .dnsEntry, .addDNSEntry:
+            return true
+        default:
+            return false
+        }
+    }
+
+    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        let item = mapIndexPathToItem(indexPath)
+
+        if case .addDNSEntry = item, editingStyle == .insert {
+            commitDNSServer()
+        }
+
+        if case .dnsEntry(let serverIndex) = item, editingStyle == .delete {
+            deleteDNSServer(at: serverIndex)
+        }
+    }
+
+    func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
+        let item = mapIndexPathToItem(indexPath)
+
+        switch item {
+        case .dnsEntry:
+            return true
+        default:
+            return false
+        }
+    }
+
+    func tableView(_ tableView: UITableView, moveRowAt sourceIndexPath: IndexPath, to destinationIndexPath: IndexPath) {
+        let sourceItem = mapIndexPathToItem(sourceIndexPath)!
+        let destinationItem = mapIndexPathToItem(destinationIndexPath)!
+
+        if case .dnsEntry(let sourceIndex) = sourceItem, case .dnsEntry(let destinationIndex) = destinationItem {
+            dataModel.customDNSDomains.swapAt(sourceIndex, destinationIndex)
+        }
+    }
+
+    // MARK: - UITableViewDelegate
 
     func tableView(_ tableView: UITableView, shouldHighlightRowAt indexPath: IndexPath) -> Bool {
         return false
@@ -137,9 +188,7 @@ class PreferencesDataSource: NSObject, UITableViewDataSource, UITableViewDelegat
             return nil
 
         case .customDNS:
-            guard !dataModel.canEnableCustomDNS else { return nil }
-
-            let reusableView = tableView.dequeueReusableHeaderFooterView(withIdentifier: ReuseIdentifiers.customDNSFooterIdentifier) as! SettingsStaticTextFooterView
+            let reusableView = tableView.dequeueReusableHeaderFooterView(withIdentifier: ReuseIdentifiers.customDNSFooter.rawValue) as! SettingsStaticTextFooterView
 
             reusableView.titleLabel.text = NSLocalizedString(
                 "CUSTOM_DNS_FOOTER_LABEL",
@@ -152,69 +201,276 @@ class PreferencesDataSource: NSObject, UITableViewDataSource, UITableViewDelegat
         }
     }
 
-    func cellForItem(_ item: Item, in tableView: UITableView, at indexPath: IndexPath) -> UITableViewCell {
+    func tableView(_ tableView: UITableView, heightForFooterInSection section: Int) -> CGFloat {
+        let sectionObject = sections[section]
+
+        switch sectionObject {
+        case .mullvadDNS:
+            return UITableView.automaticDimension
+
+        case .customDNS:
+            if dataModel.canEnableCustomDNS {
+                return 0
+            } else {
+                return UITableView.automaticDimension
+            }
+        }
+    }
+
+    func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCell.EditingStyle {
+        let item = mapIndexPathToItem(indexPath)
+
+        switch item {
+        case .dnsEntry:
+            return .delete
+        case .addDNSEntry:
+            return .insert
+        default:
+            return .none
+        }
+    }
+
+    func tableView(_ tableView: UITableView, targetIndexPathForMoveFromRowAt sourceIndexPath: IndexPath, toProposedIndexPath proposedDestinationIndexPath: IndexPath) -> IndexPath {
+        let sectionObject = mapIndexPathToSection(sourceIndexPath)!
+
+        if case .customDNS = sectionObject {
+            let items = makeItems(for: sectionObject, dataModel: dataModel)
+
+            let comparator = { (_ item: Item) -> Bool in
+                if case .dnsEntry = item {
+                    return true
+                }
+                return false
+            }
+
+            let minAllowedIndex = items.firstIndex(where: comparator)!
+            let maxAllowedIndex = items.lastIndex(where: comparator)!
+
+            let minAllowedIndexPath = IndexPath(row: minAllowedIndex, section: sourceIndexPath.section)
+            let maxAllowedIndexPath = IndexPath(row: maxAllowedIndex, section: sourceIndexPath.section)
+
+            if proposedDestinationIndexPath.section < sourceIndexPath.section {
+                return minAllowedIndexPath
+            } else if proposedDestinationIndexPath.section > sourceIndexPath.section {
+                return maxAllowedIndexPath
+            } else {
+                if proposedDestinationIndexPath.row < minAllowedIndex {
+                    return minAllowedIndexPath
+                } else if proposedDestinationIndexPath.row > maxAllowedIndex {
+                    return maxAllowedIndexPath
+                } else {
+                    return proposedDestinationIndexPath
+                }
+            }
+        } else {
+            return sourceIndexPath
+        }
+    }
+
+    func tableView(_ tableView: UITableView, indentationLevelForRowAt indexPath: IndexPath) -> Int {
+        let item = mapIndexPathToItem(indexPath)
+
+        if case .dnsEntry = item, !isEditing {
+            return 1
+        } else {
+            return 0
+        }
+    }
+
+    // MARK: -
+
+    func makeItems(for section: Section, dataModel: PreferencesDataModel) -> [Item] {
+        switch section {
+        case .mullvadDNS:
+            return [.blockAdvertising, .blockTracking]
+
+        case .customDNS:
+            var items: [Item] = [.useCustomDNS]
+
+            items.append(contentsOf: dataModel.customDNSDomains.enumerated().map { i, _ in .dnsEntry(i) })
+
+            if isEditing {
+                items.append(.addDNSEntry)
+            }
+
+            return items
+        }
+    }
+
+    func mapIndexPathToSection(_ indexPath: IndexPath) -> Section? {
+        guard sections.indices.contains(indexPath.section) else { return nil }
+
+        return sections[indexPath.section]
+    }
+
+    func mapIndexPathToItem(_ indexPath: IndexPath) -> Item? {
+        guard sections.indices.contains(indexPath.section) else { return nil }
+
+        let sectionObject = sections[indexPath.section]
+        let items = makeItems(for: sectionObject, dataModel: dataModel)
+
+        guard items.indices.contains(indexPath.row) else { return nil }
+
+        return items[indexPath.row]
+    }
+
+    func mapItemToIndexPath(_ item: Item, in section: Section) -> IndexPath? {
+        guard let sectionIndex = sectionIndex(for: section) else { return nil }
+
+        let items = makeItems(for: section, dataModel: dataModel)
+
+        guard let itemIndex = items.firstIndex(of: item) else { return nil }
+
+        return IndexPath(row: itemIndex, section: sectionIndex)
+    }
+
+    func mapItemToCell(_ item: Item, in section: Section) -> UITableViewCell? {
+        guard let indexPath = mapItemToIndexPath(item, in: section) else { return nil }
+
+        return tableView?.cellForRow(at: indexPath)
+    }
+
+    func dequeueCellForItem(_ item: Item, in tableView: UITableView, at indexPath: IndexPath) -> UITableViewCell {
         switch item {
         case .blockAdvertising:
-            let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.switchCellIdentifier, for: indexPath) as! SettingsSwitchCell
-
-            cell.titleLabel.text = NSLocalizedString(
+            let titleLabel = NSLocalizedString(
                 "BLOCK_ADS_CELL_LABEL",
                 tableName: "Preferences",
                 value: "Block ads",
                 comment: ""
             )
 
-            cell.setOn(dataModel.blockAdvertising, animated: false)
+            if isEditing {
+                let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.editableToggle.rawValue, for: indexPath) as! SettingsSwitchCell
 
-            cell.action = { [weak self] isOn in
-                self?.setBlockAdvertising(isOn)
+                cell.titleLabel.text = titleLabel
+                cell.setOn(dataModel.blockAdvertising, animated: false)
+                cell.action = { [weak self] isOn in
+                    self?.setBlockAdvertising(isOn)
+                }
+
+                return cell
+            } else {
+                let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.toggle.rawValue, for: indexPath) as! SettingsStaticToggleCell
+
+                cell.titleLabel.text = titleLabel
+                cell.isOn = dataModel.blockAdvertising
+
+                return cell
             }
 
-            return cell
-
         case .blockTracking:
-            let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.switchCellIdentifier, for: indexPath) as! SettingsSwitchCell
-
-            cell.titleLabel.text = NSLocalizedString(
+            let titleLabel = NSLocalizedString(
                 "BLOCK_TRACKERS_CELL_LABEL",
                 tableName: "Preferences",
                 value: "Block trackers",
                 comment: ""
             )
 
-            cell.setOn(dataModel.blockTracking, animated: false)
+            if isEditing {
+                let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.editableToggle.rawValue, for: indexPath) as! SettingsSwitchCell
 
-            cell.action = { [weak self] isOn in
-                self?.setBlockTracking(isOn)
+                cell.titleLabel.text = titleLabel
+                cell.setOn(dataModel.blockTracking, animated: false)
+                cell.action = { [weak self] isOn in
+                    self?.setBlockTracking(isOn)
+                }
+
+                return cell
+            } else {
+                let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.toggle.rawValue, for: indexPath) as! SettingsStaticToggleCell
+
+                cell.titleLabel.text = titleLabel
+                cell.isOn = dataModel.blockTracking
+
+                return cell
             }
 
-            return cell
-
         case .useCustomDNS:
-            let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.switchCellIdentifier, for: indexPath) as! SettingsSwitchCell
-
-            cell.titleLabel.text = NSLocalizedString(
+            let titleLabel = NSLocalizedString(
                 "CUSTOM_DNS_CELL_LABEL",
                 tableName: "Preferences",
                 value: "Use custom DNS",
                 comment: ""
             )
 
-            cell.isEnabled = dataModel.canEnableCustomDNS
-            cell.setOn(dataModel.effectiveEnableCustomDNS, animated: false)
+            if isEditing {
+                let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.editableToggle.rawValue, for: indexPath) as! SettingsSwitchCell
 
-            cell.action = { [weak self] isOn in
-                self?.setEnableCustomDNS(isOn)
+                cell.titleLabel.text = titleLabel
+                cell.setEnabled(dataModel.canEnableCustomDNS)
+                cell.setOn(dataModel.effectiveEnableCustomDNS, animated: false)
+
+                cell.action = { [weak self] isOn in
+                    self?.setEnableCustomDNS(isOn)
+                }
+
+                return cell
+            } else {
+                let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.toggle.rawValue, for: indexPath) as! SettingsStaticToggleCell
+
+                cell.titleLabel.text = titleLabel
+                cell.isOn = dataModel.effectiveEnableCustomDNS
+
+                return cell
+            }
+
+        case .addDNSEntry:
+            let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.editableDNSServer.rawValue, for: indexPath) as! SettingsDNSTextCell
+            cell.textField.text = dataModel.dnsDomainInput
+            cell.isValidInput = dataModel.isValidDNSDomainForVisualPresentation(dataModel.dnsDomainInput)
+
+            cell.onTextChange = { [weak self] cell in
+                guard let self = self else { return }
+
+                let text = cell.textField.text ?? ""
+
+                self.dataModel.dnsDomainInput = text
+                cell.isValidInput = self.dataModel.isValidDNSDomainForVisualPresentation(text)
+            }
+
+            cell.onReturnKey = { [weak self] cell in
+                let text = cell.textField.text ?? ""
+
+                if text.isEmpty {
+                    cell.endEditing(false)
+                } else {
+                    self?.commitDNSServer()
+                }
+
             }
 
             return cell
 
-        case .customDNSEntry:
-            let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.dnsEntryCellIdentifier, for: indexPath) as! SettingsDNSTextCell
+        case .dnsEntry(let serverIndex):
+            let dnsServerAddress = dataModel.customDNSDomains[serverIndex]
 
-            cell.textField.text = ""
+            if isEditing {
+                let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.editableDNSServer.rawValue, for: indexPath) as! SettingsDNSTextCell
+                cell.textField.text = dnsServerAddress
+                cell.isValidInput = dataModel.isValidDNSDomainForVisualPresentation(dnsServerAddress)
 
-            return cell
+                cell.onTextChange = { [weak self] cell in
+                    guard let self = self else { return }
+
+                    let text = cell.textField.text ?? ""
+
+                    self.dataModel.customDNSDomains[serverIndex] = text
+                    cell.isValidInput = self.dataModel.isValidDNSDomainForVisualPresentation(text)
+                }
+
+                cell.onReturnKey = { cell in
+                    cell.endEditing(false)
+                }
+
+                return cell
+            } else {
+                let cell = tableView.dequeueReusableCell(withIdentifier: ReuseIdentifiers.dnsServer.rawValue, for: indexPath) as! SettingsDNSServerAddressCell
+
+                cell.titleLabel.text = dnsServerAddress
+
+                return cell
+            }
         }
     }
 
@@ -230,46 +486,93 @@ class PreferencesDataSource: NSObject, UITableViewDataSource, UITableViewDelegat
     }
 
     func setBlockAdvertising(_ isEnabled: Bool) {
-        let prevCanEnableCustomDNS = dataModel.canEnableCustomDNS
+        let oldDataModel = dataModel
 
         dataModel.blockAdvertising = isEnabled
 
-        if prevCanEnableCustomDNS != dataModel.canEnableCustomDNS {
-            tableView?.performBatchUpdates {
-                tableView?.reloadSections(sectionIndices(for: [.customDNS]), with: .automatic)
-            }
-        }
+        updateCustomDNSFooterIfNeeded(oldDataModel: oldDataModel)
     }
 
     func setBlockTracking(_ isEnabled: Bool) {
-        let prevCanEnableCustomDNS = dataModel.canEnableCustomDNS
+        let oldDataModel = dataModel
 
         dataModel.blockTracking = isEnabled
 
-        if prevCanEnableCustomDNS != dataModel.canEnableCustomDNS {
+        updateCustomDNSFooterIfNeeded(oldDataModel: oldDataModel)
+    }
+
+    func setEnableCustomDNS(_ isEnabled: Bool) {
+        let oldDataModel = dataModel
+
+        dataModel.enableCustomDNS = isEnabled
+
+        updateCustomDNSFooterIfNeeded(oldDataModel: oldDataModel)
+    }
+
+    func updateCustomDNSFooterIfNeeded(oldDataModel: PreferencesDataModel) {
+        if oldDataModel.canEnableCustomDNS != dataModel.canEnableCustomDNS {
             tableView?.performBatchUpdates {
-                tableView?.reloadSections(sectionIndices(for: [.customDNS]), with: .automatic)
+                let sectionIndex = sectionIndex(for: .customDNS)!
+                let indexPath = mapItemToIndexPath(.useCustomDNS, in: .customDNS)!
+
+                tableView?.reloadRows(at: [indexPath], with: .none)
+                tableView?.footerView(forSection: sectionIndex)
             }
         }
     }
 
-    func setEnableCustomDNS(_ isEnabled: Bool) {
-        dataModel.enableCustomDNS = isEnabled
+    func setEditing(_ editing: Bool) {
+        guard isEditing != editing else { return }
 
-        addCustomDNSInputItemIfNeeded()
+        isEditing = editing
+
+        // Since user can edit the existing fields, make sure to filter out invalid input
+        if !editing {
+            dataModel.customDNSDomains = dataModel.customDNSDomains.compactMap { ipAddressString in
+                return AnyIPAddress(ipAddressString).map { ipAddress in
+                    return "\(ipAddress)"
+                }
+            }
+        }
+
+        tableView?.reloadData()
     }
 
-    func addCustomDNSInputItemIfNeeded() {
-        guard dataModel.customDNSDomains.isEmpty else { return }
+    func commitDNSServer() {
+        let ipAddress = AnyIPAddress(dataModel.dnsDomainInput)
+        let newServerIndex = dataModel.customDNSDomains.count
+        let addServerCell = mapItemToCell(.addDNSEntry, in: .customDNS) as? SettingsDNSTextCell
 
-        dataModel.customDNSDomains.append("")
-        items[.customDNS]?.append(.customDNSEntry)
+        if let ipAddress = ipAddress {
+            dataModel.dnsDomainInput = ""
+            dataModel.customDNSDomains.append("\(ipAddress)")
 
-        let section = sectionIndex(for: .customDNS)!
-        let indexPath = IndexPath(row: 1, section: section)
+            addServerCell?.textField.text = dataModel.dnsDomainInput
+            addServerCell?.isValidInput = dataModel.isValidDNSDomainForVisualPresentation(dataModel.dnsDomainInput)
+
+            let indexPathForNewServer = mapItemToIndexPath(.dnsEntry(newServerIndex), in: .customDNS)!
+
+            tableView?.performBatchUpdates({
+                tableView?.insertRows(at: [indexPathForNewServer], with: .automatic)
+            }, completion: { completed in
+                if completed {
+                    if let indexPath = self.mapItemToIndexPath(.addDNSEntry, in: .customDNS) {
+                        self.tableView?.scrollToRow(at: indexPath, at: .bottom, animated: true)
+                    }
+                }
+            })
+        } else {
+            addServerCell?.isValidInput = false
+        }
+    }
+
+    func deleteDNSServer(at index: Int) {
+        let indexPath = mapItemToIndexPath(.dnsEntry(index), in: .customDNS)!
+
+        dataModel.customDNSDomains.remove(at: index)
 
         tableView?.performBatchUpdates {
-            tableView?.insertRows(at: [indexPath], with: .automatic)
+            tableView?.deleteRows(at: [indexPath], with: .automatic)
         }
     }
 

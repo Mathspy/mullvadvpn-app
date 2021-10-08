@@ -36,12 +36,19 @@ class PreferencesViewController: UITableViewController, PreferencesDataSourceDel
 
         navigationItem.title = NSLocalizedString("NAVIGATION_TITLE", tableName: "Preferences", comment: "Navigation title")
         navigationItem.largeTitleDisplayMode = .always
+        navigationItem.rightBarButtonItem = editButtonItem
 
         TunnelManager.shared.addObserver(self)
 
         if let dnsSettings = TunnelManager.shared.tunnelInfo?.tunnelSettings.interface.dnsSettings {
             //viewModel = PreferencesViewModel(from: dnsSettings)
         }
+    }
+
+    override func setEditing(_ editing: Bool, animated: Bool) {
+        dataSource.setEditing(editing)
+
+        super.setEditing(editing, animated: animated)
     }
 
     // MARK: - PreferencesDataSourceDelegate

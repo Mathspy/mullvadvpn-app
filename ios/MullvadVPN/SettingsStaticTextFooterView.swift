@@ -9,23 +9,29 @@
 import UIKit
 
 class SettingsStaticTextFooterView: UITableViewHeaderFooterView {
-    let titleLabel: UILabel
-
-    override init(reuseIdentifier: String?) {
-        titleLabel = UILabel()
+    let titleLabel: UILabel = {
+        let titleLabel = UILabel()
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         titleLabel.font = UIFont.systemFont(ofSize: 14)
         titleLabel.textColor = .white
         titleLabel.numberOfLines = 0
+        return titleLabel
+    }()
 
+    override init(reuseIdentifier: String?) {
         super.init(reuseIdentifier: reuseIdentifier)
 
+        contentView.layoutMargins = UIMetrics.settingsCellLayoutMargins
         contentView.addSubview(titleLabel)
+
+        let bottomConstraint = titleLabel.bottomAnchor.constraint(equalTo: contentView.layoutMarginsGuide.bottomAnchor)
+        bottomConstraint.priority = .defaultLow
+
         contentView.addConstraints([
             titleLabel.topAnchor.constraint(equalTo: contentView.layoutMarginsGuide.topAnchor),
             titleLabel.leadingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.leadingAnchor),
             titleLabel.trailingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.trailingAnchor),
-            titleLabel.bottomAnchor.constraint(equalTo: contentView.layoutMarginsGuide.bottomAnchor),
+            bottomConstraint
         ])
     }
 
