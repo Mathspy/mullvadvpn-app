@@ -21,14 +21,17 @@ class CustomSwitchContainer: UIView {
         return shapeLayer
     }()
 
-    var controlOpacity: CGFloat = 1.0 {
-        didSet {
-            control.alpha = controlOpacity
-            borderShape.opacity = Float(controlOpacity)
+    let control = CustomSwitch()
+
+    var isEnabled: Bool {
+        get {
+            return control.isEnabled
+        }
+        set {
+            control.isEnabled = newValue
+            updateBorderOpacity()
         }
     }
-
-    let control = CustomSwitch()
 
     override var intrinsicContentSize: CGSize {
         return controlSize()
@@ -68,6 +71,10 @@ class CustomSwitchContainer: UIView {
         size.width += Self.borderEdgeInsets.left + Self.borderEdgeInsets.right
         size.height += Self.borderEdgeInsets.top + Self.borderEdgeInsets.bottom
         return size
+    }
+
+    private func updateBorderOpacity() {
+        borderShape.opacity = control.isEnabled ? 1 : 0.2
     }
 
 }
