@@ -14,7 +14,7 @@ extension CharacterSet {
     }
 
     static var ipv6AddressCharset: CharacterSet {
-        return CharacterSet(charactersIn: "0123456789abcdef:")
+        return CharacterSet(charactersIn: "0123456789abcdef:.")
     }
 
 }
