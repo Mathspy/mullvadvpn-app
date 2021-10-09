@@ -3,7 +3,7 @@ use std::fmt;
 #[cfg(feature = "wireguard")]
 use std::net::{Ipv4Addr, Ipv6Addr};
 #[cfg(feature = "wireguard")]
-use talpid_types::net::{wireguard, TransportPort};
+use talpid_types::net::{wireguard, TransportProtocol};
 use talpid_types::net::Endpoint;
 
 #[cfg(feature = "wireguard")]
