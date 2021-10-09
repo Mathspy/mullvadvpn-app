@@ -4,8 +4,7 @@ use crate::rest;
 use hyper::{header, Method, StatusCode};
 use mullvad_types::{location, relay_list};
 #[cfg(feature = "wireguard")]
-use talpid_types::net::wireguard;
-use talpid_types::net::TransportProtocol;
+use talpid_types::net::{wireguard, TransportProtocol};
 
 use std::{
     collections::BTreeMap,
@@ -360,6 +359,7 @@ impl Relay {
     }
 }
 
+#[cfg(feature = "wireguard")]
 #[derive(Debug, serde::Deserialize)]
 struct Wireguard {
     port_ranges: Vec<(u16, u16)>,
