@@ -15,7 +15,9 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use talpid_types::{net::wireguard, ErrorExt};
+#[cfg(feature = "wireguard")]
+use talpid_types::net::wireguard;
+use talpid_types::ErrorExt;
 
 
 pub mod availability;
@@ -408,6 +410,7 @@ pub struct WireguardKeyProxy {
 }
 
 
+#[cfg(feature = "wireguard")]
 impl WireguardKeyProxy {
     pub fn new(handle: rest::MullvadRestHandle) -> Self {
         Self { handle }

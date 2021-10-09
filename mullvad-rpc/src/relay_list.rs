@@ -3,7 +3,9 @@ use crate::rest;
 
 use hyper::{header, Method, StatusCode};
 use mullvad_types::{location, relay_list};
-use talpid_types::net::{wireguard, TransportProtocol};
+#[cfg(feature = "wireguard")]
+use talpid_types::net::wireguard;
+use talpid_types::net::TransportProtocol;
 
 use std::{
     collections::BTreeMap,
@@ -76,6 +78,7 @@ impl RelayListProxy {
 struct ServerRelayList {
     locations: BTreeMap<String, Location>,
     openvpn: OpenVpn,
+    #[cfg(feature = "wireguard")]
     wireguard: Wireguard,
     bridge: Bridges,
 }
@@ -86,6 +89,7 @@ impl ServerRelayList {
         let Self {
             locations,
             openvpn,
+            #[cfg(feature = "wireguard")]
             wireguard,
             bridge,
         } = self;
@@ -109,6 +113,7 @@ impl ServerRelayList {
 
 
         Self::add_openvpn_relays(&mut countries, openvpn);
+        #[cfg(feature = "wireguard")]
         Self::add_wireguard_relays(&mut countries, wireguard);
         Self::add_bridge_relays(&mut countries, bridge);
 
@@ -166,6 +171,7 @@ impl ServerRelayList {
         }
     }
 
+    #[cfg(feature = "wireguard")]
     fn add_wireguard_relays(
         countries: &mut BTreeMap<String, relay_list::RelayListCountry>,
         wireguard: Wireguard,
@@ -362,6 +368,7 @@ struct Wireguard {
     relays: Vec<WireGuardRelay>,
 }
 
+#[cfg(feature = "wireguard")]
 #[derive(Debug, serde::Deserialize)]
 struct WireGuardRelay {
     #[serde(flatten)]
