@@ -30,6 +30,7 @@ impl From<talpid_types::net::TunnelEndpoint> for TunnelEndpoint {
             address: endpoint.endpoint.address.to_string(),
             protocol: i32::from(TransportProtocol::from(endpoint.endpoint.protocol)),
             tunnel_type: match endpoint.tunnel_type {
+                #[cfg(feature = "wireguard")]
                 net::TunnelType::Wireguard => i32::from(TunnelType::Wireguard),
                 net::TunnelType::OpenVpn => i32::from(TunnelType::Openvpn),
             },
@@ -169,6 +170,7 @@ impl From<mullvad_types::states::TunnelState> for TunnelState {
                             talpid_tunnel::ParameterGenerationError::NoMatchingBridgeRelay => {
                                 i32::from(GenerationError::NoMatchingBridgeRelay)
                             }
+                            #[cfg(feature = "wireguard")]
                             talpid_tunnel::ParameterGenerationError::NoWireguardKey => {
                                 i32::from(GenerationError::NoWireguardKey)
                             }
@@ -196,6 +198,7 @@ impl From<mullvad_types::states::TunnelState> for TunnelState {
     }
 }
 
+#[cfg(feature = "wireguard")]
 impl From<mullvad_types::wireguard::KeygenEvent> for KeygenEvent {
     fn from(event: mullvad_types::wireguard::KeygenEvent) -> Self {
         use keygen_event::KeygenEvent as Event;
@@ -216,6 +219,7 @@ impl From<mullvad_types::wireguard::KeygenEvent> for KeygenEvent {
     }
 }
 
+#[cfg(feature = "wireguard")]
 impl From<mullvad_types::wireguard::PublicKey> for PublicKey {
     fn from(public_key: mullvad_types::wireguard::PublicKey) -> Self {
         PublicKey {
@@ -251,6 +255,7 @@ impl From<mullvad_types::ConnectionConfig> for ConnectionConfig {
                         password: config.password,
                     })
                 }
+                #[cfg(feature = "wireguard")]
                 mullvad_types::ConnectionConfig::Wireguard(config) => {
                     connection_config::Config::Wireguard(connection_config::WireguardConfig {
                         tunnel: Some(connection_config::wireguard_config::TunnelConfig {
@@ -481,6 +486,7 @@ impl From<mullvad_types::relay_constraints::RelaySettings> for RelaySettings {
                     providers: convert_providers_constraint(&constraints.providers),
                     tunnel_type: match constraints.tunnel_protocol {
                         Constraint::Any => None,
+                        #[cfg(feature = "wireguard")]
                         Constraint::Only(talpid_net::TunnelType::Wireguard) => {
                             Some(TunnelType::Wireguard)
                         }
@@ -492,6 +498,7 @@ impl From<mullvad_types::relay_constraints::RelaySettings> for RelaySettings {
                         tunnel_type: i32::from(tunnel_type),
                     }),
 
+                    #[cfg(feature = "wireguard")]
                     wireguard_constraints: Some(WireguardConstraints {
                         port: constraints
                             .wireguard_constraints
@@ -556,6 +563,7 @@ impl From<&mullvad_types::settings::TunnelOptions> for TunnelOptions {
             openvpn: Some(tunnel_options::OpenvpnOptions {
                 mssfix: u32::from(options.openvpn.mssfix.unwrap_or_default()),
             }),
+            #[cfg(feature = "wireguard")]
             wireguard: Some(tunnel_options::WireguardOptions {
                 mtu: u32::from(options.wireguard.options.mtu.unwrap_or_default()),
                 rotation_interval: options
@@ -624,6 +632,7 @@ impl From<mullvad_types::relay_list::Relay> for Relay {
                         protocol: i32::from(TransportProtocol::from(endpoint.protocol)),
                     })
                     .collect(),
+                #[cfg(feature = "wireguard")]
                 wireguard: relay
                     .tunnels
                     .wireguard
@@ -685,6 +694,7 @@ pub enum FromProtobufTypeError {
     InvalidArgument(&'static str),
 }
 
+#[cfg(feature = "wireguard")]
 impl TryFrom<&WireguardConstraints> for mullvad_types::relay_constraints::WireguardConstraints {
     type Error = FromProtobufTypeError;
 
@@ -793,6 +803,7 @@ impl TryFrom<RelaySettings> for mullvad_types::relay_constraints::RelaySettings 
                             FromProtobufTypeError::InvalidArgument("missing openvpn constraints"),
                         )?,
                     )?;
+                #[cfg(feature = "wireguard")]
                 let wireguard_constraints = mullvad_constraints::WireguardConstraints::try_from(
                     &settings.wireguard_constraints.ok_or(
                         FromProtobufTypeError::InvalidArgument("missing wireguard constraints"),
@@ -804,6 +815,7 @@ impl TryFrom<RelaySettings> for mullvad_types::relay_constraints::RelaySettings 
                         location,
                         providers,
                         tunnel_protocol,
+                        #[cfg(feature = "wireguard")]
                         wireguard_constraints,
                         openvpn_constraints,
                     },
@@ -881,6 +893,7 @@ impl TryFrom<RelaySettingsUpdate> for mullvad_types::relay_constraints::RelaySet
                     } else {
                         None
                     };
+                #[cfg(feature = "wireguard")]
                 let wireguard_constraints =
                     if let Some(ref constraints) = settings.wireguard_constraints {
                         Some(mullvad_constraints::WireguardConstraints::try_from(
@@ -894,6 +907,7 @@ impl TryFrom<RelaySettingsUpdate> for mullvad_types::relay_constraints::RelaySet
                         location,
                         providers,
                         tunnel_protocol,
+                        #[cfg(feature = "wireguard")]
                         wireguard_constraints,
                         openvpn_constraints,
                     },
@@ -913,6 +927,7 @@ impl TryFrom<TunnelTypeConstraint> for Constraint<talpid_types::net::TunnelType>
             Some(TunnelType::Openvpn) => {
                 Ok(Constraint::Only(talpid_types::net::TunnelType::OpenVpn))
             }
+            #[cfg(feature = "wireguard")]
             Some(TunnelType::Wireguard) => {
                 Ok(Constraint::Only(talpid_types::net::TunnelType::Wireguard))
             }
@@ -927,7 +942,9 @@ impl TryFrom<ConnectionConfig> for mullvad_types::ConnectionConfig {
     type Error = FromProtobufTypeError;
 
     fn try_from(config: ConnectionConfig) -> Result<mullvad_types::ConnectionConfig, Self::Error> {
-        use talpid_types::net::{self, openvpn, wireguard};
+        #[cfg(feature = "wireguard")]
+        use talpid_types::net::wireguard;
+        use talpid_types::net::{self, openvpn};
 
         let config = config.config.ok_or(FromProtobufTypeError::InvalidArgument(
             "missing connection config",
@@ -952,6 +969,7 @@ impl TryFrom<ConnectionConfig> for mullvad_types::ConnectionConfig {
                     },
                 ))
             }
+            #[cfg(feature = "wireguard")]
             connection_config::Config::Wireguard(config) => {
                 let tunnel = config.tunnel.ok_or(FromProtobufTypeError::InvalidArgument(
                     "missing tunnel config",
@@ -1172,6 +1190,7 @@ impl TryFrom<TunnelOptions> for mullvad_types::settings::TunnelOptions {
             .ok_or(FromProtobufTypeError::InvalidArgument(
                 "missing openvpn tunnel options",
             ))?;
+        #[cfg(feature = "wireguard")]
         let wireguard_options = options
             .wireguard
             .ok_or(FromProtobufTypeError::InvalidArgument(
@@ -1196,6 +1215,7 @@ impl TryFrom<TunnelOptions> for mullvad_types::settings::TunnelOptions {
                     None
                 },
             },
+            #[cfg(feature = "wireguard")]
             wireguard: mullvad_types::wireguard::TunnelOptions {
                 options: net::wireguard::TunnelOptions {
                     mtu: if wireguard_options.mtu != 0 {
