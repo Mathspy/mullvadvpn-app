@@ -35,7 +35,7 @@ impl super::SettingsMigration for Migration {
         #[cfg(not(feature = "wireguard"))]
         let wireguard_constraints = Option::<()>::None;
 
-        #[cfg_attr(feature = "wireguard", allow(unused_variables))]
+        #[cfg_attr(not(feature = "wireguard"), allow(unused_variables))]
         if let Some(relay_settings) = settings.get_mut("relay_settings") {
             if let Some(normal_settings) = relay_settings.get_mut("normal") {
                 if let Some(openvpn_constraints) = openvpn_constraints {
