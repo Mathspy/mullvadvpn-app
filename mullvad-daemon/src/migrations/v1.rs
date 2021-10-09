@@ -18,6 +18,7 @@ pub fn migrate(settings: &mut serde_json::Value) -> Result<()> {
             .get("openvpn")
             .cloned()
     }();
+    #[cfg(feature = "wireguard")]
     let wireguard_constraints = || -> Option<serde_json::Value> {
         settings
             .get("relay_settings")?
@@ -27,6 +28,8 @@ pub fn migrate(settings: &mut serde_json::Value) -> Result<()> {
             .get("wireguard")
             .cloned()
     }();
+    #[cfg(not(feature = "wireguard"))]
+    let wireguard_constraints = Option::<()>::None;
 
     if let Some(relay_settings) = settings.get_mut("relay_settings") {
         if let Some(normal_settings) = relay_settings.get_mut("normal") {
@@ -36,6 +39,7 @@ pub fn migrate(settings: &mut serde_json::Value) -> Result<()> {
                     serde_json::json!(Constraint::<TunnelType>::Any);
             } else if let Some(wireguard_constraints) = wireguard_constraints {
                 normal_settings["wireguard_constraints"] = wireguard_constraints;
+                #[cfg(feature = "wireguard")]
                 normal_settings["tunnel_protocol"] =
                     serde_json::json!(Constraint::Only(TunnelType::Wireguard));
             } else {

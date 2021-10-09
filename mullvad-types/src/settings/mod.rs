@@ -1,9 +1,10 @@
+#[cfg(feature = "wireguard")]
+use crate::wireguard;
 use crate::{
     relay_constraints::{
         BridgeConstraints, BridgeSettings, BridgeState, Constraint, LocationConstraint,
         RelayConstraints, RelaySettings, RelaySettingsUpdate,
     },
-    wireguard,
 };
 #[cfg(target_os = "android")]
 use jnix::{jni::objects::JObject, FromJava, IntoJava, JnixEnv};
@@ -12,7 +13,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::net::IpAddr;
 #[cfg(target_os = "windows")]
 use std::{collections::HashSet, path::PathBuf};
-use talpid_types::net::{self, openvpn, GenericTunnelOptions};
+#[cfg(feature = "wireguard")]
+use talpid_types::net;
+use talpid_types::net::{openvpn, GenericTunnelOptions};
 
 pub const CURRENT_SETTINGS_VERSION: SettingsVersion = SettingsVersion::V5;
 
@@ -59,6 +62,7 @@ impl Serialize for SettingsVersion {
 #[cfg_attr(target_os = "android", jnix(package = "net.mullvad.mullvadvpn.model"))]
 pub struct Settings {
     account_token: Option<String>,
+    #[cfg(feature = "wireguard")]
     #[cfg_attr(target_os = "android", jnix(skip))]
     wireguard: Option<wireguard::WireguardData>,
     relay_settings: RelaySettings,
@@ -103,6 +107,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             account_token: None,
+            #[cfg(feature = "wireguard")]
             wireguard: None,
             relay_settings: RelaySettings::Normal(RelayConstraints {
                 location: Constraint::Only(LocationConstraint::Country("se".to_owned())),
@@ -151,10 +156,12 @@ impl Settings {
         }
     }
 
+    #[cfg(feature = "wireguard")]
     pub fn get_wireguard(&self) -> Option<wireguard::WireguardData> {
         self.wireguard.clone()
     }
 
+    #[cfg(feature = "wireguard")]
     pub fn set_wireguard(&mut self, wireguard: Option<wireguard::WireguardData>) -> bool {
         if wireguard != self.wireguard {
             self.wireguard = wireguard;
@@ -218,6 +225,7 @@ pub struct TunnelOptions {
     #[cfg_attr(target_os = "android", jnix(skip))]
     pub openvpn: openvpn::TunnelOptions,
     /// Contains wireguard tunnel options.
+    #[cfg(feature = "wireguard")]
     pub wireguard: wireguard::TunnelOptions,
     /// Contains generic tunnel options that may apply to more than a single tunnel type.
     #[cfg_attr(target_os = "android", jnix(skip))]
@@ -310,6 +318,7 @@ impl Default for TunnelOptions {
     fn default() -> Self {
         TunnelOptions {
             openvpn: openvpn::TunnelOptions::default(),
+            #[cfg(feature = "wireguard")]
             wireguard: wireguard::TunnelOptions {
                 options: net::wireguard::TunnelOptions::default(),
                 rotation_interval: None,

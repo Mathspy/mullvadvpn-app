@@ -6,7 +6,9 @@ use std::{
     fmt, io,
     net::{IpAddr, SocketAddr, ToSocketAddrs},
 };
-use talpid_types::net::{openvpn, wireguard, Endpoint, TunnelParameters};
+#[cfg(feature = "wireguard")]
+use talpid_types::net::wireguard;
+use talpid_types::net::{openvpn, Endpoint, TunnelParameters};
 
 #[derive(err_derive::Error, Debug)]
 pub enum Error {
@@ -35,6 +37,7 @@ impl CustomTunnelEndpoint {
     pub fn endpoint(&self) -> Endpoint {
         match &self.config {
             ConnectionConfig::OpenVpn(config) => config.endpoint,
+            #[cfg(feature = "wireguard")]
             ConnectionConfig::Wireguard(config) => config.get_endpoint(),
         }
     }
@@ -56,6 +59,7 @@ impl CustomTunnelEndpoint {
                 proxy,
             }
             .into(),
+            #[cfg(feature = "wireguard")]
             ConnectionConfig::Wireguard(connection) => wireguard::TunnelParameters {
                 connection,
                 options: tunnel_options.wireguard.options.clone(),
@@ -77,6 +81,7 @@ impl fmt::Display for CustomTunnelEndpoint {
                 config.endpoint.address.port(),
                 config.endpoint.protocol
             ),
+            #[cfg(feature = "wireguard")]
             ConnectionConfig::Wireguard(connection) => write!(
                 f,
                 "WireGuard relay - {} with public key {}",
@@ -110,6 +115,7 @@ fn resolve_to_ip(host: &str) -> Result<IpAddr, Error> {
 pub enum ConnectionConfig {
     #[serde(rename = "openvpn")]
     OpenVpn(openvpn::ConnectionConfig),
+    #[cfg(feature = "wireguard")]
     #[serde(rename = "wireguard")]
     Wireguard(wireguard::ConnectionConfig),
 }
@@ -120,6 +126,7 @@ impl ConnectionConfig {
             ConnectionConfig::OpenVpn(config) => {
                 config.endpoint.address = SocketAddr::new(ip, config.endpoint.address.port());
             }
+            #[cfg(feature = "wireguard")]
             ConnectionConfig::Wireguard(config) => {
                 config.peer.endpoint = SocketAddr::new(ip, config.peer.endpoint.port())
             }

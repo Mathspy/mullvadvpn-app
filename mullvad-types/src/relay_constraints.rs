@@ -1,16 +1,20 @@
 //! When changing relay selection, please verify if `docs/relay-selector.md` needs to be
 //! updated as well.
 
+#[cfg(feature = "wireguard")]
+use crate::relay_list::WireguardEndpointData;
 use crate::{
     location::{CityCode, CountryCode, Hostname},
-    relay_list::{OpenVpnEndpointData, Relay, WireguardEndpointData},
+    relay_list::{OpenVpnEndpointData, Relay},
     CustomTunnelEndpoint,
 };
 #[cfg(target_os = "android")]
 use jnix::{FromJava, IntoJava};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt};
-use talpid_types::net::{openvpn::ProxySettings, IpVersion, TransportProtocol, TunnelType};
+#[cfg(feature = "wireguard")]
+use talpid_types::net::IpVersion;
+use talpid_types::net::{openvpn::ProxySettings, TransportProtocol, TunnelType};
 
 pub trait Match<T> {
     fn matches(&self, other: &T) -> bool;
@@ -176,6 +180,7 @@ impl RelaySettings {
     pub(crate) fn ensure_bridge_compatibility(&mut self) {
         match self {
             RelaySettings::Normal(ref mut constraints) => {
+                #[cfg(feature = "wireguard")]
                 if constraints.tunnel_protocol == Constraint::Only(TunnelType::Wireguard) {
                     constraints.tunnel_protocol = Constraint::Any;
                 }
@@ -210,6 +215,7 @@ pub struct RelayConstraints {
     pub providers: Constraint<Providers>,
     #[cfg_attr(target_os = "android", jnix(skip))]
     pub tunnel_protocol: Constraint<TunnelType>,
+    #[cfg(feature = "wireguard")]
     #[cfg_attr(target_os = "android", jnix(skip))]
     pub wireguard_constraints: WireguardConstraints,
     #[cfg_attr(target_os = "android", jnix(skip))]
@@ -220,9 +226,10 @@ pub struct RelayConstraints {
 impl Default for RelayConstraints {
     fn default() -> Self {
         RelayConstraints {
-            tunnel_protocol: Constraint::Only(TunnelType::Wireguard),
+            tunnel_protocol: if cfg!(feature = "wireguard") { Constraint::Only(TunnelType::Wireguard) } else { Constraint::Only(TunnelType::OpenVpn) },
             location: Constraint::default(),
             providers: Constraint::default(),
+            #[cfg(feature = "wireguard")]
             wireguard_constraints: WireguardConstraints::default(),
             openvpn_constraints: OpenVpnConstraints::default(),
         }
@@ -237,6 +244,7 @@ impl RelayConstraints {
             tunnel_protocol: update
                 .tunnel_protocol
                 .unwrap_or_else(|| self.tunnel_protocol.clone()),
+            #[cfg(feature = "wireguard")]
             wireguard_constraints: update
                 .wireguard_constraints
                 .unwrap_or_else(|| self.wireguard_constraints.clone()),
@@ -250,14 +258,29 @@ impl RelayConstraints {
 impl fmt::Display for RelayConstraints {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self.tunnel_protocol {
-            Constraint::Any => write!(
-                f,
-                "Any tunnel protocol with OpenVPN through {} and WireGuard through {}",
-                &self.openvpn_constraints, &self.wireguard_constraints,
-            )?,
+            Constraint::Any => {
+                #[cfg(feature = "wireguard")]
+                {
+                    write!(
+                        f,
+                        "Any tunnel protocol with OpenVPN through {} and WireGuard through {}",
+                        &self.openvpn_constraints, &self.wireguard_constraints,
+                    )?
+                }
+
+                #[cfg(not(feature = "wireguard"))]
+                {
+                    write!(
+                        f,
+                        "Any tunnel protocol with OpenVPN through {}",
+                        &self.openvpn_constraints,
+                    )?
+                }
+            } ,
             Constraint::Only(ref tunnel_protocol) => {
                 tunnel_protocol.fmt(f)?;
                 match tunnel_protocol {
+                    #[cfg(feature = "wireguard")]
                     TunnelType::Wireguard => {
                         write!(f, " over {}", &self.wireguard_constraints)?;
                     }
@@ -409,6 +432,7 @@ impl fmt::Display for LocationConstraint {
 pub enum TunnelConstraints {
     #[serde(rename = "openvpn")]
     OpenVpn(OpenVpnConstraints),
+    #[cfg(feature = "wireguard")]
     #[serde(rename = "wireguard")]
     Wireguard(WireguardConstraints),
 }
@@ -420,6 +444,7 @@ impl fmt::Display for TunnelConstraints {
                 write!(f, "OpenVPN over ")?;
                 openvpn_constraints.fmt(f)
             }
+            #[cfg(feature = "wireguard")]
             TunnelConstraints::Wireguard(wireguard_constraints) => {
                 write!(f, "Wireguard over ")?;
                 wireguard_constraints.fmt(f)
@@ -432,11 +457,13 @@ impl Match<OpenVpnEndpointData> for TunnelConstraints {
     fn matches(&self, endpoint: &OpenVpnEndpointData) -> bool {
         match *self {
             TunnelConstraints::OpenVpn(ref constraints) => constraints.matches(endpoint),
+            #[cfg(feature = "wireguard")]
             _ => false,
         }
     }
 }
 
+#[cfg(feature = "wireguard")]
 impl Match<WireguardEndpointData> for TunnelConstraints {
     fn matches(&self, endpoint: &WireguardEndpointData) -> bool {
         match *self {
@@ -489,6 +516,7 @@ impl Match<OpenVpnEndpointData> for OpenVpnConstraints {
 }
 
 /// [`Constraint`]s applicable to WireGuard relay servers.
+#[cfg(feature = "wireguard")]
 #[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(default)]
 pub struct WireguardConstraints {
@@ -498,6 +526,7 @@ pub struct WireguardConstraints {
     pub entry_location: Constraint<LocationConstraint>,
 }
 
+#[cfg(feature = "wireguard")]
 impl fmt::Display for WireguardConstraints {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self.port {
@@ -526,6 +555,7 @@ impl fmt::Display for WireguardConstraints {
     }
 }
 
+#[cfg(feature = "wireguard")]
 impl Match<WireguardEndpointData> for WireguardConstraints {
     fn matches(&self, endpoint: &WireguardEndpointData) -> bool {
         match self.port {
@@ -627,9 +657,12 @@ impl RelaySettingsUpdate {
                 endpoint.endpoint().protocol == TransportProtocol::Tcp
             }
             RelaySettingsUpdate::Normal(update) => {
+                #[cfg(feature = "wireguard")]
                 if let Some(Constraint::Only(TunnelType::Wireguard)) = &update.tunnel_protocol {
-                    false
-                } else if let Some(constraints) = &update.openvpn_constraints {
+                    return false;
+                }
+
+                if let Some(constraints) = &update.openvpn_constraints {
                     if let Constraint::Only(TransportPort {
                         protocol: TransportProtocol::Udp,
                         ..
@@ -658,6 +691,7 @@ pub struct RelayConstraintsUpdate {
     pub providers: Option<Constraint<Providers>>,
     #[cfg_attr(target_os = "android", jnix(default))]
     pub tunnel_protocol: Option<Constraint<TunnelType>>,
+    #[cfg(feature = "wireguard")]
     #[cfg_attr(target_os = "android", jnix(default))]
     pub wireguard_constraints: Option<WireguardConstraints>,
     #[cfg_attr(target_os = "android", jnix(default))]
