@@ -7,7 +7,9 @@ use std::{
 };
 #[cfg(not(target_os = "android"))]
 use talpid_types::net::openvpn as openvpn_types;
-use talpid_types::net::{wireguard as wireguard_types, TunnelParameters};
+#[cfg(feature = "wireguard")]
+use talpid_types::net::wireguard as wireguard_types;
+use talpid_types::net::TunnelParameters;
 
 #[cfg(target_os = "android")]
 pub use self::tun_provider::TunConfig;
@@ -17,12 +19,14 @@ pub use self::tun_provider::TunConfig;
 pub mod openvpn;
 
 /// A module for all WireGuard related tunnel management.
+#[cfg(feature = "wireguard")]
 pub mod wireguard;
 
 /// A module for low level platform specific tunnel device management.
 pub(crate) mod tun_provider;
 
 const OPENVPN_LOG_FILENAME: &str = "openvpn.log";
+#[cfg(feature = "wireguard")]
 const WIREGUARD_LOG_FILENAME: &str = "wireguard.log";
 
 /// Results from operations in the tunnel module.
@@ -49,6 +53,7 @@ pub enum Error {
     RotateLogError(#[error(source)] crate::logging::RotateLogError),
 
     /// Failure to build Wireguard configuration.
+    #[cfg(feature = "wireguard")]
     #[error(display = "Failed to configure Wireguard with the given parameters")]
     WireguardConfigError(#[error(source)] self::wireguard::config::Error),
 
@@ -58,6 +63,7 @@ pub enum Error {
     OpenVpnTunnelMonitoringError(#[error(source)] openvpn::Error),
 
     /// There was an error listening for events from the Wireguard tunnel
+    #[cfg(feature = "wireguard")]
     #[error(display = "Failed while listening for events from the Wireguard tunnel")]
     WireguardTunnelMonitoringError(#[error(source)] wireguard::Error),
 }
@@ -97,7 +103,7 @@ pub struct TunnelMonitor {
 impl TunnelMonitor {
     /// Creates a new `TunnelMonitor` that connects to the given remote and notifies `on_event`
     /// on tunnel state changes.
-    #[cfg_attr(any(target_os = "android", windows), allow(unused_variables))]
+    #[cfg_attr(any(target_os = "android", windows, not(feature = "wireguard")), allow(unused_variables))]
     pub fn start<L>(
         runtime: tokio::runtime::Handle,
         tunnel_parameters: &TunnelParameters,
@@ -125,6 +131,7 @@ impl TunnelMonitor {
             #[cfg(target_os = "android")]
             TunnelParameters::OpenVpn(_) => Err(Error::UnsupportedPlatform),
 
+            #[cfg(feature = "wireguard")]
             TunnelParameters::Wireguard(config) => Self::start_wireguard_tunnel(
                 runtime,
                 &config,
@@ -157,6 +164,7 @@ impl TunnelMonitor {
         resource_dir.join(process_string)
     }
 
+    #[cfg(feature = "wireguard")]
     fn start_wireguard_tunnel<L>(
         runtime: tokio::runtime::Handle,
         params: &wireguard_types::TunnelParameters,
@@ -234,6 +242,7 @@ impl TunnelMonitor {
                     logging::rotate_log(&tunnel_log)?;
                     Ok(Some(tunnel_log))
                 }
+                #[cfg(feature = "wireguard")]
                 TunnelParameters::Wireguard(_) => Ok(Some(log_dir.join(WIREGUARD_LOG_FILENAME))),
             }
         } else {
@@ -277,6 +286,7 @@ pub enum CloseHandle {
     #[cfg(not(target_os = "android"))]
     /// OpenVpn close handle
     OpenVpn(openvpn::OpenVpnCloseHandle),
+    #[cfg(feature = "wireguard")]
     /// Wireguard close handle
     Wireguard(wireguard::CloseHandle),
 }
@@ -287,6 +297,7 @@ impl CloseHandle {
         match self {
             #[cfg(not(target_os = "android"))]
             CloseHandle::OpenVpn(handle) => handle.close(),
+            #[cfg(feature = "wireguard")]
             CloseHandle::Wireguard(mut handle) => {
                 handle.close();
                 Ok(())
@@ -298,6 +309,7 @@ impl CloseHandle {
 enum InternalTunnelMonitor {
     #[cfg(not(target_os = "android"))]
     OpenVpn(openvpn::OpenVpnMonitor),
+    #[cfg(feature = "wireguard")]
     Wireguard(wireguard::WireguardMonitor),
 }
 
@@ -306,6 +318,7 @@ impl InternalTunnelMonitor {
         match self {
             #[cfg(not(target_os = "android"))]
             InternalTunnelMonitor::OpenVpn(tun) => CloseHandle::OpenVpn(tun.close_handle()),
+            #[cfg(feature = "wireguard")]
             InternalTunnelMonitor::Wireguard(tun) => CloseHandle::Wireguard(tun.close_handle()),
         }
     }
@@ -314,6 +327,7 @@ impl InternalTunnelMonitor {
         match self {
             #[cfg(not(target_os = "android"))]
             InternalTunnelMonitor::OpenVpn(tun) => tun.wait()?,
+            #[cfg(feature = "wireguard")]
             InternalTunnelMonitor::Wireguard(tun) => tun.wait()?,
         }
 

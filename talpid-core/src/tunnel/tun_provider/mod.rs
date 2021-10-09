@@ -16,9 +16,12 @@ cfg_if! {
     } else if #[cfg(all(unix, not(target_os = "android")))] {
         #[path = "unix.rs"]
         mod imp;
-        use self::imp::{UnixTun, UnixTunProvider};
+        #[cfg(feature = "wireguard")]
+        use self::imp::UnixTun;
+        use self::imp::UnixTunProvider;
         pub use self::imp::Error;
 
+        #[cfg(feature = "wireguard")]
         pub type Tun = UnixTun;
         pub type TunProvider = UnixTunProvider;
     } else {

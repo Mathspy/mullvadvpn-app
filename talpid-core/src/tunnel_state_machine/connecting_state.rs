@@ -166,6 +166,7 @@ impl ConnectingState {
         tunnel_close_event_rx.fuse()
     }
 
+    #[cfg_attr(not(feature = "wireguard"), allow(unused_variables))]
     fn wait_for_tunnel_monitor(
         tunnel_monitor: TunnelMonitor,
         retry_attempt: u32,
@@ -173,12 +174,14 @@ impl ConnectingState {
         match tunnel_monitor.wait() {
             Ok(_) => None,
             Err(error) => match error {
+                #[cfg(feature = "wireguard")]
                 tunnel::Error::WireguardTunnelMonitoringError(
                     tunnel::wireguard::Error::TimeoutError,
                 ) => {
                     log::debug!("WireGuard tunnel timed out");
                     None
                 }
+                #[cfg(feature = "wireguard")]
                 error @ tunnel::Error::WireguardTunnelMonitoringError(..)
                     if !should_retry(&error, retry_attempt) =>
                 {
@@ -436,27 +439,29 @@ impl ConnectingState {
 fn should_retry(error: &tunnel::Error, retry_attempt: u32) -> bool {
     #[cfg(windows)]
     use tunnel::openvpn;
+    #[cfg(feature = "wireguard")]
     use tunnel::wireguard::{Error, TunnelError};
 
     match error {
+        #[cfg(feature = "wireguard")]
         tunnel::Error::WireguardTunnelMonitoringError(Error::Udp2TcpError(_)) => true,
 
-        #[cfg(not(windows))]
+        #[cfg(all(feature = "wireguard", not(windows)))]
         tunnel::Error::WireguardTunnelMonitoringError(Error::TunnelError(
             TunnelError::RecoverableStartWireguardError,
         )) => true,
 
-        #[cfg(target_os = "android")]
+        #[cfg(all(feature = "wireguard", target_os = "android"))]
         tunnel::Error::WireguardTunnelMonitoringError(Error::TunnelError(
             TunnelError::BypassError(_),
         )) => true,
 
-        #[cfg(windows)]
+        #[cfg(all(feature = "wireguard", windows))]
         tunnel::Error::WireguardTunnelMonitoringError(Error::SetupRoutingError(error)) => {
             is_recoverable_routing_error(error)
         }
 
-        #[cfg(windows)]
+        #[cfg(all(feature = "wireguard", windows))]
         tunnel::Error::WireguardTunnelMonitoringError(Error::TunnelError(
             TunnelError::RecoverableStartWireguardError,
         )) if retry_attempt < MAX_ADAPTER_FAIL_RETRIES => true,
