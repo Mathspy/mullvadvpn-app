@@ -24,7 +24,7 @@ os_pipe = "0.9"
 parking_lot = "0.11"
 regex = "1.1.0"
 shell-escape = "0.1"
-talpid-types = { path = "../talpid-types" }
+talpid-types = { path = "../talpid-types", default-features = false }
 uuid = { version = "0.8", features = ["v4"] }
 zeroize = "1"
 chrono = "0.4"
@@ -92,3 +92,7 @@ tonic-build = { version = "0.5", default-features = false, features = ["transpor
 tempfile = "3.0"
 quickcheck = "1.0"
 quickcheck_macros = "1.0"
+
+[features]
+default = ["wireguard"]
+wireguard = ["talpid-types/wireguard"]
