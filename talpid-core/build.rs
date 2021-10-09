@@ -1,3 +1,4 @@
+#[cfg(feature = "wireguard")]
 use std::{env, path::PathBuf};
 
 #[cfg(windows)]
