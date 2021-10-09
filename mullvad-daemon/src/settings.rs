@@ -1,9 +1,11 @@
 #[cfg(not(target_os = "android"))]
 use futures::TryFutureExt;
+use log::error;
+#[cfg(feature = "wireguard")]
+use mullvad_types::wireguard::{RotationInterval, WireguardData};
 use mullvad_types::{
     relay_constraints::{BridgeSettings, BridgeState, RelaySettingsUpdate},
     settings::{DnsOptions, Settings},
-    wireguard::{RotationInterval, WireguardData},
 };
 #[cfg(target_os = "windows")]
 use std::collections::HashSet;
@@ -182,6 +184,7 @@ impl SettingsPersister {
         self.update(should_save).await
     }
 
+    #[cfg(feature = "wireguard")]
     pub async fn set_wireguard(&mut self, wireguard: Option<WireguardData>) -> Result<bool, Error> {
         let should_save = self.settings.set_wireguard(wireguard);
         self.update(should_save).await
@@ -250,12 +253,14 @@ impl SettingsPersister {
         self.update(should_save).await
     }
 
+    #[cfg(feature = "wireguard")]
     pub async fn set_wireguard_mtu(&mut self, mtu: Option<u16>) -> Result<bool, Error> {
         let should_save =
             Self::update_field(&mut self.settings.tunnel_options.wireguard.options.mtu, mtu);
         self.update(should_save).await
     }
 
+    #[cfg(feature = "wireguard")]
     pub async fn set_wireguard_rotation_interval(
         &mut self,
         interval: Option<RotationInterval>,

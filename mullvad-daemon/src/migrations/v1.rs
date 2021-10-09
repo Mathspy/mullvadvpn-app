@@ -38,10 +38,12 @@ pub fn migrate(settings: &mut serde_json::Value) -> Result<()> {
                 normal_settings["tunnel_protocol"] =
                     serde_json::json!(Constraint::<TunnelType>::Any);
             } else if let Some(wireguard_constraints) = wireguard_constraints {
-                normal_settings["wireguard_constraints"] = wireguard_constraints;
                 #[cfg(feature = "wireguard")]
-                normal_settings["tunnel_protocol"] =
-                    serde_json::json!(Constraint::Only(TunnelType::Wireguard));
+                {
+                    normal_settings["wireguard_constraints"] = wireguard_constraints;
+                    normal_settings["tunnel_protocol"] =
+                        serde_json::json!(Constraint::Only(TunnelType::Wireguard));
+                }
             } else {
                 normal_settings["tunnel_protocol"] =
                     serde_json::json!(Constraint::<TunnelType>::Any);

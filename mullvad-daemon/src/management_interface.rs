@@ -13,6 +13,8 @@ use mullvad_paths;
 use mullvad_rpc::{rest::Error as RestError, StatusCode};
 #[cfg(not(target_os = "android"))]
 use mullvad_types::settings::DnsOptions;
+#[cfg(feature = "wireguard")]
+use mullvad_types::wireguard::{RotationInterval, RotationIntervalError};
 use mullvad_types::{
     account::AccountToken,
     relay_constraints::{BridgeSettings, BridgeState, RelaySettingsUpdate},
@@ -20,16 +22,16 @@ use mullvad_types::{
     settings::Settings,
     states::{TargetState, TunnelState},
     version,
-    wireguard::{RotationInterval, RotationIntervalError},
 };
 use parking_lot::RwLock;
 #[cfg(windows)]
 use std::path::PathBuf;
+#[cfg(feature = "wireguard")]
+use std::{convert::TryInto, time::Duration};
 use std::{
     cmp,
-    convert::{TryFrom, TryInto},
+    convert::TryFrom,
     sync::Arc,
-    time::Duration,
 };
 use talpid_types::ErrorExt;
 use tokio_stream::wrappers::{ReceiverStream, UnboundedReceiverStream};
@@ -327,16 +329,23 @@ impl ManagementService for ManagementServiceImpl {
             .map_err(map_settings_error)
     }
 
+    #[cfg_attr(not(feature = "wireguard"), allow(unused_variables))]
     async fn set_wireguard_mtu(&self, request: Request<u32>) -> ServiceResult<()> {
-        let mtu = request.into_inner();
-        let mtu = if mtu != 0 { Some(mtu as u16) } else { None };
-        log::debug!("set_wireguard_mtu({:?})", mtu);
-        let (tx, rx) = oneshot::channel();
-        self.send_command_to_daemon(DaemonCommand::SetWireguardMtu(tx, mtu))?;
-        self.wait_for_result(rx)
-            .await?
-            .map(Response::new)
-            .map_err(map_settings_error)
+        #[cfg(feature = "wireguard")] {
+            let mtu = request.into_inner();
+            let mtu = if mtu != 0 { Some(mtu as u16) } else { None };
+            log::debug!("set_wireguard_mtu({:?})", mtu);
+            let (tx, rx) = oneshot::channel();
+            self.send_command_to_daemon(DaemonCommand::SetWireguardMtu(tx, mtu))?;
+            self.wait_for_result(rx)
+                .await?
+                .map(Response::new)
+                .map_err(map_settings_error)
+        }
+
+        #[cfg(not(feature = "wireguard"))] {
+            Err(Status::unimplemented("this mullvad version doesn't support wireguard"))
+        }
     }
 
     async fn set_enable_ipv6(&self, request: Request<bool>) -> ServiceResult<()> {
@@ -513,70 +522,101 @@ impl ManagementService for ManagementServiceImpl {
     // WireGuard key management
     //
 
+    #[cfg_attr(not(feature = "wireguard"), allow(unused_variables))]
     async fn set_wireguard_rotation_interval(
         &self,
         request: Request<types::Duration>,
     ) -> ServiceResult<()> {
-        let interval: RotationInterval = Duration::try_from(request.into_inner())
-            .map_err(|_| Status::invalid_argument("unexpected negative rotation interval"))?
-            .try_into()
-            .map_err(|error: RotationIntervalError| {
-                Status::invalid_argument(error.display_chain())
-            })?;
+        #[cfg(feature = "wireguard")] {
+            let interval: RotationInterval = Duration::try_from(request.into_inner())
+                .map_err(|_| Status::invalid_argument("unexpected negative rotation interval"))?
+                .try_into()
+                .map_err(|error: RotationIntervalError| {
+                    Status::invalid_argument(error.display_chain())
+                })?;
 
-        log::debug!("set_wireguard_rotation_interval({:?})", interval);
-        let (tx, rx) = oneshot::channel();
-        self.send_command_to_daemon(DaemonCommand::SetWireguardRotationInterval(
-            tx,
-            Some(interval),
-        ))?;
-        self.wait_for_result(rx)
-            .await?
-            .map(Response::new)
-            .map_err(map_settings_error)
+            log::debug!("set_wireguard_rotation_interval({:?})", interval);
+            let (tx, rx) = oneshot::channel();
+            self.send_command_to_daemon(DaemonCommand::SetWireguardRotationInterval(
+                tx,
+                Some(interval),
+            ))?;
+            self.wait_for_result(rx)
+                .await?
+                .map(Response::new)
+                .map_err(map_settings_error)
+        }
+
+        #[cfg(not(feature = "wireguard"))] {
+            Err(Status::unimplemented("this mullvad version doesn't support wireguard"))
+        }
     }
 
     async fn reset_wireguard_rotation_interval(&self, _: Request<()>) -> ServiceResult<()> {
-        log::debug!("reset_wireguard_rotation_interval");
-        let (tx, rx) = oneshot::channel();
-        self.send_command_to_daemon(DaemonCommand::SetWireguardRotationInterval(tx, None))?;
-        self.wait_for_result(rx)
-            .await?
-            .map(Response::new)
-            .map_err(map_settings_error)
+        #[cfg(feature = "wireguard")] {
+            log::debug!("reset_wireguard_rotation_interval");
+            let (tx, rx) = oneshot::channel();
+            self.send_command_to_daemon(DaemonCommand::SetWireguardRotationInterval(tx, None))?;
+            self.wait_for_result(rx)
+                .await?
+                .map(Response::new)
+                .map_err(map_settings_error)
+        }
+
+        #[cfg(not(feature = "wireguard"))] {
+            Err(Status::unimplemented("this mullvad version doesn't support wireguard"))
+        }
     }
 
     async fn generate_wireguard_key(&self, _: Request<()>) -> ServiceResult<types::KeygenEvent> {
-        // TODO: return error for TooManyKeys, GenerationFailure
-        // on success, simply return the new key or nil
-        log::debug!("generate_wireguard_key");
-        let (tx, rx) = oneshot::channel();
-        self.send_command_to_daemon(DaemonCommand::GenerateWireguardKey(tx))?;
-        self.wait_for_result(rx)
-            .await?
-            .map(|event| Response::new(types::KeygenEvent::from(event)))
-            .map_err(map_daemon_error)
+        #[cfg(feature = "wireguard")] {
+            // TODO: return error for TooManyKeys, GenerationFailure
+            // on success, simply return the new key or nil
+            log::debug!("generate_wireguard_key");
+            let (tx, rx) = oneshot::channel();
+            self.send_command_to_daemon(DaemonCommand::GenerateWireguardKey(tx))?;
+            self.wait_for_result(rx)
+                .await?
+                .map(|event| Response::new(types::KeygenEvent::from(event)))
+                .map_err(map_daemon_error)
+        }
+
+        #[cfg(not(feature = "wireguard"))] {
+            Err(Status::unimplemented("this mullvad version doesn't support wireguard"))
+        }
     }
 
     async fn get_wireguard_key(&self, _: Request<()>) -> ServiceResult<types::PublicKey> {
-        log::debug!("get_wireguard_key");
-        let (tx, rx) = oneshot::channel();
-        self.send_command_to_daemon(DaemonCommand::GetWireguardKey(tx))?;
-        let key = self.wait_for_result(rx).await?.map_err(map_daemon_error)?;
-        match key {
-            Some(key) => Ok(Response::new(types::PublicKey::from(key))),
-            None => Err(Status::not_found("no WireGuard key was found")),
+        #[cfg(feature = "wireguard")] {
+            log::debug!("get_wireguard_key");
+            let (tx, rx) = oneshot::channel();
+            self.send_command_to_daemon(DaemonCommand::GetWireguardKey(tx))?;
+            let key = self.wait_for_result(rx).await?.map_err(map_daemon_error)?;
+            match key {
+                Some(key) => Ok(Response::new(types::PublicKey::from(key))),
+                None => Err(Status::not_found("no WireGuard key was found")),
+            }
+        }
+
+        #[cfg(not(feature = "wireguard"))] {
+            Err(Status::unimplemented("this mullvad version doesn't support wireguard"))
         }
     }
 
     async fn verify_wireguard_key(&self, _: Request<()>) -> ServiceResult<bool> {
-        log::debug!("verify_wireguard_key");
-        let (tx, rx) = oneshot::channel();
-        self.send_command_to_daemon(DaemonCommand::VerifyWireguardKey(tx))?;
-        self.wait_for_result(rx)
-            .await?
-            .map(Response::new)
-            .map_err(map_daemon_error)
+        #[cfg(feature = "wireguard")] {
+            log::debug!("verify_wireguard_key");
+            let (tx, rx) = oneshot::channel();
+            self.send_command_to_daemon(DaemonCommand::VerifyWireguardKey(tx))?;
+            self.wait_for_result(rx)
+                .await?
+                .map(Response::new)
+                .map_err(map_daemon_error)
+        }
+
+        #[cfg(not(feature = "wireguard"))] {
+            Err(Status::unimplemented("this mullvad version doesn't support wireguard"))
+        }
     }
 
     // Split tunneling
@@ -847,6 +887,7 @@ impl EventListener for ManagementInterfaceEventBroadcaster {
         })
     }
 
+    #[cfg(feature = "wireguard")]
     fn notify_key_event(&self, key_event: mullvad_types::wireguard::KeygenEvent) {
         log::debug!("Broadcasting new wireguard key event");
         self.notify(types::DaemonEvent {

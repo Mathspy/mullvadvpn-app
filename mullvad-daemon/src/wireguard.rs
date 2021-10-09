@@ -71,6 +71,7 @@ impl KeyManager {
             http_handle,
             current_job: None,
             abort_scheduler_tx: None,
+            #[cfg(feature = "wireguard")]
             auto_rotation_interval: RotationInterval::default(),
         }
     }
