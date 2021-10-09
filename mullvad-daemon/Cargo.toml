@@ -29,10 +29,10 @@ tokio-stream = "0.1"
 uuid = { version = "0.8", features = ["v4"] }
 
 mullvad-paths = { path = "../mullvad-paths" }
-mullvad-types = { path = "../mullvad-types", default-features = false }
+mullvad-types = { path = "../mullvad-types" }
 mullvad-rpc = { path = "../mullvad-rpc" }
 talpid-core = { path = "../talpid-core", default-features = false }
-talpid-types = { path = "../talpid-types" }
+talpid-types = { path = "../talpid-types", default-features = false }
 talpid-platform-metadata = { path = "../talpid-platform-metadata" }
 
 [target.'cfg(not(target_os="android"))'.dependencies]
