@@ -17,6 +17,7 @@ pub use self::tun_provider::TunConfig;
 pub mod openvpn;
 
 /// A module for all WireGuard related tunnel management.
+#[cfg(feature = "wireguard")]
 pub mod wireguard;
 
 /// A module for low level platform specific tunnel device management.

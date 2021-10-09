@@ -416,6 +416,7 @@ impl ConnectingState {
 fn should_retry(error: &tunnel::Error, retry_attempt: u32) -> bool {
     #[cfg(windows)]
     use tunnel::openvpn;
+    #[cfg(feature = "wireguard")]
     use tunnel::wireguard::{Error, TunnelError};
 
     match error {
