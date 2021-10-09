@@ -122,6 +122,7 @@ pub enum ParameterGenerationError {
     #[error(display = "Failure to select a matching bridge relay")]
     NoMatchingBridgeRelay,
     /// Returned when tunnel parameters can't be generated because wireguard key is not available.
+    #[cfg(feature = "wireguard")]
     #[error(display = "No wireguard key available")]
     NoWireguardKey,
     /// Failure to resolve the hostname of a custom tunnel configuration
