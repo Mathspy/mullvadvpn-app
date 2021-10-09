@@ -63,3 +63,7 @@ CompanyName = "Mullvad VPN AB"
 LegalCopyright = "(c) 2021 Mullvad VPN AB"
 InternalName = "mullvad-daemon"
 OriginalFilename = "mullvad-daemon.exe"
+
+[features]
+default = ["wireguard"]
+wireguard = ["talpid-core/wireguard", "talpid-types/wireguard"]
