@@ -2,6 +2,7 @@ pub use prost_types::{Duration, Timestamp};
 
 use mullvad_types::relay_constraints::Constraint;
 use std::convert::TryFrom;
+#[cfg(feature = "wireguard")]
 use talpid_types::ErrorExt;
 
 tonic::include_proto!("mullvad_daemon.management_interface");
@@ -1076,7 +1077,7 @@ impl TryFrom<ConnectionConfig> for mullvad_types::ConnectionConfig {
                 ))
             }
             #[cfg(not(feature = "wireguard"))]
-            connection_config::Config::Wireguard(config) => Err(FromProtobufTypeError::InvalidArgument(
+            connection_config::Config::Wireguard(_) => Err(FromProtobufTypeError::InvalidArgument(
                 "invalid connection config",
             )),
         }
