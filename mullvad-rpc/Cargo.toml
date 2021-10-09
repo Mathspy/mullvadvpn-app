@@ -25,7 +25,7 @@ tokio-rustls = "0.22"
 urlencoding = "1"
 webpki = { version = "0.21", features =  [] }
 
-mullvad-types = { path = "../mullvad-types" }
+mullvad-types = { path = "../mullvad-types", default-features = false }
 talpid-types = { path = "../talpid-types", default-features = false }
 
 [dev-dependencies]
@@ -37,4 +37,4 @@ tokio-stream = { version = "0.1", features = ["io-util"] }
 
 [features]
 default = ["wireguard"]
-wireguard = ["talpid-types/wireguard"]
+wireguard = ["mullvad-types/wireguard", "talpid-types/wireguard"]
