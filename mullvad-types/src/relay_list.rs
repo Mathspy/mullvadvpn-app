@@ -160,6 +160,7 @@ pub struct WireguardEndpointData {
     pub protocol: TransportProtocol,
 }
 
+#[cfg(feature = "wireguard")]
 fn default_wg_transport() -> TransportProtocol {
     TransportProtocol::Udp
 }

@@ -459,6 +459,7 @@ impl Match<OpenVpnEndpointData> for TunnelConstraints {
     fn matches(&self, endpoint: &OpenVpnEndpointData) -> bool {
         match *self {
             TunnelConstraints::OpenVpn(ref constraints) => constraints.matches(endpoint),
+            #[cfg(feature = "wireguard")]
             _ => false,
         }
     }
