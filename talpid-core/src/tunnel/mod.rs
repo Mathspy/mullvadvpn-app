@@ -7,7 +7,9 @@ use std::{
 };
 #[cfg(not(target_os = "android"))]
 use talpid_types::net::openvpn as openvpn_types;
-use talpid_types::net::{wireguard as wireguard_types, TunnelParameters};
+#[cfg(feature = "wireguard")]
+use talpid_types::net::wireguard as wireguard_types;
+use talpid_types::net::TunnelParameters;
 
 #[cfg(target_os = "android")]
 pub use self::tun_provider::TunConfig;
@@ -129,6 +131,7 @@ impl TunnelMonitor {
             #[cfg(target_os = "android")]
             TunnelParameters::OpenVpn(_) => Err(Error::UnsupportedPlatform),
 
+            #[cfg(feature = "wireguard")]
             TunnelParameters::Wireguard(config) => Self::start_wireguard_tunnel(
                 runtime,
                 &config,
@@ -239,6 +242,7 @@ impl TunnelMonitor {
                     logging::rotate_log(&tunnel_log)?;
                     Ok(Some(tunnel_log))
                 }
+                #[cfg(feature = "wireguard")]
                 TunnelParameters::Wireguard(_) => Ok(Some(log_dir.join(WIREGUARD_LOG_FILENAME))),
             }
         } else {
@@ -315,6 +319,7 @@ impl InternalTunnelMonitor {
         match self {
             #[cfg(not(target_os = "android"))]
             InternalTunnelMonitor::OpenVpn(tun) => CloseHandle::OpenVpn(tun.close_handle()),
+            #[cfg(feature = "wireguard")]
             InternalTunnelMonitor::Wireguard(tun) => CloseHandle::Wireguard(tun.close_handle()),
         }
     }
@@ -323,6 +328,7 @@ impl InternalTunnelMonitor {
         match self {
             #[cfg(not(target_os = "android"))]
             InternalTunnelMonitor::OpenVpn(tun) => tun.wait()?,
+            #[cfg(feature = "wireguard")]
             InternalTunnelMonitor::Wireguard(tun) => tun.wait()?,
         }
 

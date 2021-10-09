@@ -180,6 +180,7 @@ impl ConnectingState {
                     log::debug!("WireGuard tunnel timed out");
                     None
                 }
+                #[cfg(feature = "wireguard")]
                 error @ tunnel::Error::WireguardTunnelMonitoringError(..)
                     if !should_retry(&error, retry_attempt) =>
                 {
