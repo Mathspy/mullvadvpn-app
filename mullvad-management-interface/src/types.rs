@@ -517,6 +517,9 @@ impl From<mullvad_types::relay_constraints::RelaySettings> for RelaySettings {
                             .map(RelayLocation::from),
                     }),
 
+                    #[cfg(not(feature = "wireguard"))]
+                    wireguard_constraints: None,
+
                     openvpn_constraints: Some(OpenvpnConstraints {
                         port: constraints
                             .openvpn_constraints
@@ -575,6 +578,8 @@ impl From<&mullvad_types::settings::TunnelOptions> for TunnelOptions {
                 #[cfg(not(windows))]
                 use_wireguard_nt: false,
             }),
+            #[cfg(not(feature = "wireguard"))]
+            wireguard: None,
             generic: Some(tunnel_options::GenericOptions {
                 enable_ipv6: options.generic.enable_ipv6,
             }),
@@ -654,6 +659,8 @@ impl From<mullvad_types::relay_list::Relay> for Relay {
                         }
                     })
                     .collect(),
+                #[cfg(not(feature = "wireguard"))]
+                wireguard: Vec::new()
             }),
             bridges: Some(RelayBridges {
                 shadowsocks: relay
