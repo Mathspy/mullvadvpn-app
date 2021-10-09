@@ -66,4 +66,4 @@ OriginalFilename = "mullvad-daemon.exe"
 
 [features]
 default = ["wireguard"]
-wireguard = ["talpid-types/wireguard", "talpid-core/wireguard"]
+wireguard = ["talpid-core/wireguard", "talpid-types/wireguard"]
