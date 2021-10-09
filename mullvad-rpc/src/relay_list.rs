@@ -6,10 +6,12 @@ use mullvad_types::{location, relay_list};
 #[cfg(feature = "wireguard")]
 use talpid_types::net::{wireguard, TransportProtocol};
 
+#[cfg(feature = "wireguard")]
+use std::net::Ipv6Addr;
 use std::{
     collections::BTreeMap,
     future::Future,
-    net::{Ipv4Addr, Ipv6Addr},
+    net::Ipv4Addr,
     time::Duration,
 };
 
