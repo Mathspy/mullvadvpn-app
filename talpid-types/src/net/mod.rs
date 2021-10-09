@@ -9,6 +9,7 @@ use std::{
 
 pub mod openvpn;
 pub mod proxy;
+#[cfg(feature = "wireguard")]
 pub mod wireguard;
 
 /// TunnelParameters are used to encapsulate all the data needed to start a tunnel. This is enum
@@ -17,6 +18,7 @@ pub mod wireguard;
 #[derive(Clone, Eq, PartialEq, Deserialize, Serialize, Debug)]
 pub enum TunnelParameters {
     OpenVpn(openvpn::TunnelParameters),
+    #[cfg(feature = "wireguard")]
     Wireguard(wireguard::TunnelParameters),
 }
 
@@ -30,6 +32,7 @@ impl TunnelParameters {
                 proxy: params.proxy.as_ref().map(|proxy| proxy.get_endpoint()),
                 entry_endpoint: None,
             },
+            #[cfg(feature = "wireguard")]
             TunnelParameters::Wireguard(params) => TunnelEndpoint {
                 tunnel_type: TunnelType::Wireguard,
                 endpoint: params
@@ -53,6 +56,7 @@ impl TunnelParameters {
                 .as_ref()
                 .map(|proxy| proxy.get_endpoint().endpoint)
                 .unwrap_or(params.config.endpoint),
+            #[cfg(feature = "wireguard")]
             TunnelParameters::Wireguard(params) => params.connection.get_endpoint(),
         }
     }
@@ -61,6 +65,7 @@ impl TunnelParameters {
     pub fn get_exit_hop_endpoint(&self) -> Option<Endpoint> {
         match self {
             TunnelParameters::OpenVpn(_params) => None,
+            #[cfg(feature = "wireguard")]
             TunnelParameters::Wireguard(params) => params.connection.get_exit_endpoint(),
         }
     }
@@ -68,11 +73,13 @@ impl TunnelParameters {
     pub fn get_generic_options(&self) -> &GenericTunnelOptions {
         match &self {
             TunnelParameters::OpenVpn(params) => &params.generic_options,
+            #[cfg(feature = "wireguard")]
             TunnelParameters::Wireguard(params) => &params.generic_options,
         }
     }
 }
 
+#[cfg(feature = "wireguard")]
 impl From<wireguard::TunnelParameters> for TunnelParameters {
     fn from(wg_params: wireguard::TunnelParameters) -> TunnelParameters {
         TunnelParameters::Wireguard(wg_params)
@@ -91,6 +98,7 @@ impl From<openvpn::TunnelParameters> for TunnelParameters {
 pub enum TunnelType {
     #[serde(rename = "openvpn")]
     OpenVpn,
+    #[cfg(feature = "wireguard")]
     #[serde(rename = "wireguard")]
     Wireguard,
 }
@@ -99,6 +107,7 @@ impl fmt::Display for TunnelType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let tunnel = match self {
             TunnelType::OpenVpn => "OpenVPN",
+            #[cfg(feature = "wireguard")]
             TunnelType::Wireguard => "WireGuard",
         };
         write!(f, "{}", tunnel)
@@ -134,6 +143,7 @@ impl fmt::Display for TunnelEndpoint {
                     )?;
                 }
             }
+            #[cfg(feature = "wireguard")]
             TunnelType::Wireguard => {
                 if let Some(ref entry_endpoint) = self.entry_endpoint {
                     write!(f, " via {}", entry_endpoint)?;
