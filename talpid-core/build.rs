@@ -55,29 +55,33 @@ fn main() {
     declare_library(WINFW_DIR_VAR, WINFW_BUILD_DIR, "winfw");
     declare_library(WINDNS_DIR_VAR, WINDNS_BUILD_DIR, "windns");
     declare_library(WINNET_DIR_VAR, WINNET_BUILD_DIR, "winnet");
-    let lib_dir = manifest_dir().join("../build/lib/x86_64-pc-windows-msvc");
-    println!("cargo:rustc-link-search={}", &lib_dir.display());
     #[cfg(feature = "wireguard")]
-    println!("cargo:rustc-link-lib=dylib=libwg");
+    {
+        let lib_dir = manifest_dir().join("../build/lib/x86_64-pc-windows-msvc");
+        println!("cargo:rustc-link-search={}", &lib_dir.display());
+        println!("cargo:rustc-link-lib=dylib=libwg");
+    }
 }
 
 #[cfg(not(windows))]
 fn main() {
     generate_grpc_code();
 
-    let target_os = env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS not set");
-
-    declare_libs_dir("../dist-assets/binaries");
-    declare_libs_dir("../build/lib");
-
-    let link_type = match target_os.as_str() {
-        "android" => "",
-        "linux" | "macos" => "=static",
-        _ => panic!("Unsupported platform: {}", target_os),
-    };
-
     #[cfg(feature = "wireguard")]
-    println!("cargo:rustc-link-lib{}=wg", link_type);
+    {
+        let target_os = env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS not set");
+
+        declare_libs_dir("../dist-assets/binaries");
+        declare_libs_dir("../build/lib");
+
+        let link_type = match target_os.as_str() {
+            "android" => "",
+            "linux" | "macos" => "=static",
+            _ => panic!("Unsupported platform: {}", target_os),
+        };
+
+        println!("cargo:rustc-link-lib{}=wg", link_type);
+    }
 }
 
 fn manifest_dir() -> PathBuf {
