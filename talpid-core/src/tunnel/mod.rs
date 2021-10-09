@@ -50,6 +50,7 @@ pub enum Error {
     RotateLogError(#[error(source)] crate::logging::RotateLogError),
 
     /// Failure to build Wireguard configuration.
+    #[cfg(feature = "wireguard")]
     #[error(display = "Failed to configure Wireguard with the given parameters")]
     WireguardConfigError(#[error(source)] self::wireguard::config::Error),
 
@@ -59,6 +60,7 @@ pub enum Error {
     OpenVpnTunnelMonitoringError(#[error(source)] openvpn::Error),
 
     /// There was an error listening for events from the Wireguard tunnel
+    #[cfg(feature = "wireguard")]
     #[error(display = "Failed while listening for events from the Wireguard tunnel")]
     WireguardTunnelMonitoringError(#[error(source)] wireguard::Error),
 }
@@ -159,6 +161,7 @@ impl TunnelMonitor {
         resource_dir.join(process_string)
     }
 
+    #[cfg(feature = "wireguard")]
     fn start_wireguard_tunnel<L>(
         runtime: tokio::runtime::Handle,
         params: &wireguard_types::TunnelParameters,
@@ -280,6 +283,7 @@ pub enum CloseHandle {
     #[cfg(not(target_os = "android"))]
     /// OpenVpn close handle
     OpenVpn(openvpn::OpenVpnCloseHandle),
+    #[cfg(feature = "wireguard")]
     /// Wireguard close handle
     Wireguard(wireguard::CloseHandle),
 }
@@ -290,6 +294,7 @@ impl CloseHandle {
         match self {
             #[cfg(not(target_os = "android"))]
             CloseHandle::OpenVpn(handle) => handle.close(),
+            #[cfg(feature = "wireguard")]
             CloseHandle::Wireguard(mut handle) => {
                 handle.close();
                 Ok(())
@@ -301,6 +306,7 @@ impl CloseHandle {
 enum InternalTunnelMonitor {
     #[cfg(not(target_os = "android"))]
     OpenVpn(openvpn::OpenVpnMonitor),
+    #[cfg(feature = "wireguard")]
     Wireguard(wireguard::WireguardMonitor),
 }
 
