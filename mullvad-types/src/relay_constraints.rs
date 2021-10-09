@@ -261,18 +261,22 @@ impl fmt::Display for RelayConstraints {
         match self.tunnel_protocol {
             Constraint::Any => {
                 #[cfg(feature = "wireguard")]
-                write!(
-                    f,
-                    "Any tunnel protocol with OpenVPN through {} and WireGuard through {}",
-                    &self.openvpn_constraints, &self.wireguard_constraints,
-                )?
+                {
+                    write!(
+                        f,
+                        "Any tunnel protocol with OpenVPN through {} and WireGuard through {}",
+                        &self.openvpn_constraints, &self.wireguard_constraints,
+                    )?
+                }
 
                 #[cfg(not(feature = "wireguard"))]
-                write!(
-                    f,
-                    "Any tunnel protocol with OpenVPN through {}",
-                    &self.openvpn_constraints,
-                )?
+                {
+                    write!(
+                        f,
+                        "Any tunnel protocol with OpenVPN through {}",
+                        &self.openvpn_constraints,
+                    )?
+                }
             } ,
             Constraint::Only(ref tunnel_protocol) => {
                 tunnel_protocol.fmt(f)?;
