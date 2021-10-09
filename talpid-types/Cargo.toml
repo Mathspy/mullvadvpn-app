@@ -17,3 +17,7 @@ err-derive = "0.3.0"
 
 [target.'cfg(target_os = "android")'.dependencies]
 jnix = { version = "0.4", features = ["derive"] }
+
+[features]
+default = ["wireguard"]
+wireguard = []
