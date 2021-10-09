@@ -9,7 +9,7 @@ publish = false
 
 [dependencies]
 err-derive = "0.3.0"
-mullvad-types = { path = "../mullvad-types" }
+mullvad-types = { path = "../mullvad-types", default-features = false }
 mullvad-paths = { path = "../mullvad-paths" }
 talpid-types = { path = "../talpid-types", default-features = false }
 tonic = "0.5"
@@ -31,4 +31,4 @@ tonic-build = { version = "0.5", default-features = false, features = ["transpor
 
 [features]
 default = ["wireguard"]
-wireguard = ["talpid-types/wireguard"]
+wireguard = ["mullvad-types/wireguard", "talpid-types/wireguard"]
