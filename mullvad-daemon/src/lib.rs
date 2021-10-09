@@ -27,6 +27,8 @@ use futures::{
 };
 use log::{debug, error, info, warn};
 use mullvad_rpc::availability::ApiAvailabilityHandle;
+#[cfg(feature = "wireguard")]
+use mullvad_types::wireguard::{KeygenEvent, RotationInterval};
 use mullvad_types::{
     account::{AccountData, AccountToken, VoucherSubmission},
     endpoint::MullvadEndpoint,
@@ -39,7 +41,6 @@ use mullvad_types::{
     settings::{DnsOptions, DnsState, Settings},
     states::{TargetState, TunnelState},
     version::{AppVersion, AppVersionInfo},
-    wireguard::{KeygenEvent, RotationInterval},
 };
 use settings::SettingsPersister;
 #[cfg(target_os = "android")]
@@ -70,6 +71,7 @@ use talpid_types::{
 };
 use tokio::{fs, io};
 
+#[cfg(feature = "wireguard")]
 #[path = "wireguard.rs"]
 mod wireguard;
 
@@ -245,10 +247,13 @@ pub enum DaemonCommand {
     /// Get the daemon settings
     GetSettings(oneshot::Sender<Settings>),
     /// Generate new wireguard key
+    #[cfg(feature = "wireguard")]
     GenerateWireguardKey(ResponseTx<wireguard::KeygenEvent, Error>),
     /// Return a public key of the currently set wireguard private key, if there is one
+    #[cfg(feature = "wireguard")]
     GetWireguardKey(ResponseTx<Option<wireguard::PublicKey>, Error>),
     /// Verify if the currently set wireguard key is valid.
+    #[cfg(feature = "wireguard")]
     VerifyWireguardKey(ResponseTx<bool, Error>),
     /// Get information about the currently running and latest app versions
     GetVersionInfo(oneshot::Sender<Option<AppVersionInfo>>),
@@ -307,6 +312,7 @@ pub(crate) enum InternalDaemonEvent {
     /// Daemon shutdown triggered by a signal, ctrl-c or similar.
     TriggerShutdown,
     /// Wireguard key generation event
+    #[cfg(feature = "wireguard")]
     WgKeyEvent(
         (
             AccountToken,
@@ -911,6 +917,7 @@ where
             }
             Command(command) => self.handle_command(command).await,
             TriggerShutdown => self.trigger_shutdown_event(),
+            #[cfg(feature = "wireguard")]
             WgKeyEvent(key_event) => self.handle_wireguard_key_event(key_event).await,
             NewAccountEvent(account_token, tx) => {
                 self.handle_new_account_event(account_token, tx).await
@@ -1257,6 +1264,7 @@ where
         }
     }
 
+    #[cfg(feature = "wireguard")]
     async fn handle_wireguard_key_event(
         &mut self,
         event: (
@@ -2215,6 +2223,7 @@ where
         }
     }
 
+    #[cfg(feature = "wireguard")]
     async fn on_set_wireguard_mtu(
         &mut self,
         tx: ResponseTx<(), settings::Error>,
@@ -2242,6 +2251,7 @@ where
         }
     }
 
+    #[cfg(feature = "wireguard")]
     async fn on_set_wireguard_rotation_interval(
         &mut self,
         tx: ResponseTx<(), settings::Error>,
@@ -2267,6 +2277,7 @@ where
         }
     }
 
+    #[cfg(feature = "wireguard")]
     async fn ensure_wireguard_keys_for_current_account(&mut self) {
         if let Some(account) = self.settings.get_account_token() {
             if self.settings.get_wireguard().is_none() {
@@ -2281,6 +2292,7 @@ where
         }
     }
 
+    #[cfg(feature = "wireguard")]
     async fn on_generate_wireguard_key(&mut self, tx: ResponseTx<KeygenEvent, Error>) {
         match self.on_generate_wireguard_key_inner().await {
             Ok(key_event) => {
@@ -2296,6 +2308,7 @@ where
         }
     }
 
+    #[cfg(feature = "wireguard")]
     async fn on_generate_wireguard_key_inner(&mut self) -> Result<KeygenEvent, Error> {
         let account_token = self
             .settings
@@ -2346,6 +2359,7 @@ where
         }
     }
 
+    #[cfg(feature = "wireguard")]
     async fn on_get_wireguard_key(&mut self, tx: ResponseTx<Option<wireguard::PublicKey>, Error>) {
         let result = if self.settings.get_account_token().is_some() {
             Ok(self
@@ -2358,6 +2372,7 @@ where
         Self::oneshot_send(tx, result, "get_wireguard_key response");
     }
 
+    #[cfg(feature = "wireguard")]
     async fn on_verify_wireguard_key(&mut self, tx: ResponseTx<bool, Error>) {
         let account = match self.settings.get_account_token() {
             Some(account) => account,

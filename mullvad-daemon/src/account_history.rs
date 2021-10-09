@@ -1,4 +1,6 @@
 use crate::settings::SettingsPersister;
+#[cfg(feature = "wireguard")]
+use mullvad_types::wireguard::WireguardData;
 use mullvad_types::{account::AccountToken, wireguard::WireguardData};
 use regex::Regex;
 use std::{

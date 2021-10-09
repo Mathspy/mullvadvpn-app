@@ -8,6 +8,8 @@ use mullvad_paths;
 use mullvad_rpc::{rest::Error as RestError, StatusCode};
 #[cfg(not(target_os = "android"))]
 use mullvad_types::settings::DnsOptions;
+#[cfg(feature = "wireguard")]
+use mullvad_types::wireguard::{RotationInterval, RotationIntervalError};
 use mullvad_types::{
     account::AccountToken,
     relay_constraints::{BridgeSettings, BridgeState, RelaySettingsUpdate},
@@ -15,7 +17,6 @@ use mullvad_types::{
     settings::Settings,
     states::{TargetState, TunnelState},
     version,
-    wireguard::{RotationInterval, RotationIntervalError},
 };
 use parking_lot::RwLock;
 #[cfg(windows)]
@@ -839,6 +840,7 @@ impl EventListener for ManagementInterfaceEventBroadcaster {
         })
     }
 
+    #[cfg(feature = "wireguard")]
     fn notify_key_event(&self, key_event: mullvad_types::wireguard::KeygenEvent) {
         log::debug!("Broadcasting new wireguard key event");
         self.notify(types::DaemonEvent {

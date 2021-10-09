@@ -10,6 +10,11 @@ use futures::{
 use ipnetwork::IpNetwork;
 use log::{debug, error, info, warn};
 use mullvad_rpc::{availability::ApiAvailabilityHandle, rest::MullvadRestHandle, RelayListProxy};
+#[cfg(feature = "wireguard")]
+use mullvad_types::{
+    relay_constraints::WireguardConstraints,
+    relay_list::WireguardEndpointData,
+};
 use mullvad_types::{
     endpoint::MullvadEndpoint,
     location::Location,
@@ -30,9 +35,11 @@ use std::{
     time::{self, Duration, Instant, SystemTime},
 };
 use talpid_core::future_retry::{retry_future, ExponentialBackoff, Jittered};
+#[cfg(feature = "wireguard")]
+use talpid_types::net::wireguard;
 use talpid_types::{
     net::{
-        all_of_the_internet, openvpn::ProxySettings, wireguard, IpVersion, TransportProtocol,
+        all_of_the_internet, openvpn::ProxySettings, IpVersion, TransportProtocol,
         TunnelType,
     },
     ErrorExt,

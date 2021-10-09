@@ -1,10 +1,11 @@
 #[cfg(not(target_os = "android"))]
 use futures::TryFutureExt;
 use log::{debug, error, info};
+#[cfg(feature = "wireguard")]
+use mullvad_types::wireguard::{RotationInterval, WireguardData};
 use mullvad_types::{
     relay_constraints::{BridgeSettings, BridgeState, RelaySettingsUpdate},
     settings::{DnsOptions, Settings},
-    wireguard::{RotationInterval, WireguardData},
 };
 #[cfg(target_os = "windows")]
 use std::collections::HashSet;
