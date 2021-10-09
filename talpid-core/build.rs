@@ -84,13 +84,14 @@ fn main() {
     }
 }
 
+#[cfg(feature = "wireguard")]
 fn manifest_dir() -> PathBuf {
     env::var("CARGO_MANIFEST_DIR")
         .map(PathBuf::from)
         .expect("CARGO_MANIFEST_DIR env var not set")
 }
 
-#[cfg(not(windows))]
+#[cfg(not(windows), feature = "wireguard")]
 fn declare_libs_dir(base: &str) {
     let target_triplet = env::var("TARGET").expect("TARGET is not set");
     let lib_dir = manifest_dir().join(base).join(target_triplet);
