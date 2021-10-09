@@ -1,3 +1,4 @@
+#[cfg(feature = "wireguard")]
 use std::{env, path::PathBuf};
 
 #[cfg(windows)]
@@ -55,36 +56,43 @@ fn main() {
     declare_library(WINFW_DIR_VAR, WINFW_BUILD_DIR, "winfw");
     declare_library(WINDNS_DIR_VAR, WINDNS_BUILD_DIR, "windns");
     declare_library(WINNET_DIR_VAR, WINNET_BUILD_DIR, "winnet");
-    let lib_dir = manifest_dir().join("../build/lib/x86_64-pc-windows-msvc");
-    println!("cargo:rustc-link-search={}", &lib_dir.display());
-    println!("cargo:rustc-link-lib=dylib=libwg");
+    #[cfg(feature = "wireguard")]
+    {
+        let lib_dir = manifest_dir().join("../build/lib/x86_64-pc-windows-msvc");
+        println!("cargo:rustc-link-search={}", &lib_dir.display());
+        println!("cargo:rustc-link-lib=dylib=libwg");
+    }
 }
 
 #[cfg(not(windows))]
 fn main() {
     generate_grpc_code();
 
-    let target_os = env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS not set");
+    #[cfg(feature = "wireguard")]
+    {
+        let target_os = env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS not set");
 
-    declare_libs_dir("../dist-assets/binaries");
-    declare_libs_dir("../build/lib");
+        declare_libs_dir("../dist-assets/binaries");
+        declare_libs_dir("../build/lib");
 
-    let link_type = match target_os.as_str() {
-        "android" => "",
-        "linux" | "macos" => "=static",
-        _ => panic!("Unsupported platform: {}", target_os),
-    };
+        let link_type = match target_os.as_str() {
+            "android" => "",
+            "linux" | "macos" => "=static",
+            _ => panic!("Unsupported platform: {}", target_os),
+        };
 
-    println!("cargo:rustc-link-lib{}=wg", link_type);
+        println!("cargo:rustc-link-lib{}=wg", link_type);
+    }
 }
 
+#[cfg(feature = "wireguard")]
 fn manifest_dir() -> PathBuf {
     env::var("CARGO_MANIFEST_DIR")
         .map(PathBuf::from)
         .expect("CARGO_MANIFEST_DIR env var not set")
 }
 
-#[cfg(not(windows))]
+#[cfg(all(not(windows), feature = "wireguard"))]
 fn declare_libs_dir(base: &str) {
     let target_triplet = env::var("TARGET").expect("TARGET is not set");
     let lib_dir = manifest_dir().join(base).join(target_triplet);
