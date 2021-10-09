@@ -938,6 +938,10 @@ impl TryFrom<TunnelTypeConstraint> for Constraint<talpid_types::net::TunnelType>
             Some(TunnelType::Wireguard) => {
                 Ok(Constraint::Only(talpid_types::net::TunnelType::Wireguard))
             }
+            #[cfg(not(feature = "wireguard"))]
+            Some(TunnelType::Wireguard) => Err(FromProtobufTypeError::InvalidArgument(
+                "invalid tunnel protocol",
+            )),
             None => Err(FromProtobufTypeError::InvalidArgument(
                 "invalid tunnel protocol",
             )),
@@ -1071,6 +1075,10 @@ impl TryFrom<ConnectionConfig> for mullvad_types::ConnectionConfig {
                     },
                 ))
             }
+            #[cfg(not(feature = "wireguard"))]
+            connection_config::Config::Wireguard(config) => Err(FromProtobufTypeError::InvalidArgument(
+                "invalid connection config",
+            )),
         }
     }
 }
