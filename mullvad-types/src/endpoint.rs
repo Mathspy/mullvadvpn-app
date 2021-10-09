@@ -3,7 +3,9 @@ use std::{
     fmt,
     net::{Ipv4Addr, Ipv6Addr},
 };
-use talpid_types::net::{wireguard, Endpoint, TransportProtocol};
+#[cfg(feature = "wireguard")]
+use talpid_types::net::wireguard;
+use talpid_types::net::{Endpoint, TransportProtocol};
 
 use crate::relay_list::{OpenVpnEndpointData, WireguardEndpointData};
 
@@ -12,6 +14,7 @@ use crate::relay_list::{OpenVpnEndpointData, WireguardEndpointData};
 #[derive(Debug, Clone)]
 pub enum MullvadEndpoint {
     OpenVpn(Endpoint),
+    #[cfg(feature = "wireguard")]
     Wireguard {
         peer: wireguard::PeerConfig,
         exit_peer: Option<wireguard::PeerConfig>,
@@ -25,6 +28,7 @@ impl MullvadEndpoint {
     pub fn to_endpoint(&self) -> Endpoint {
         match self {
             MullvadEndpoint::OpenVpn(endpoint) => *endpoint,
+            #[cfg(feature = "wireguard")]
             MullvadEndpoint::Wireguard { peer, .. } => Endpoint::new(
                 peer.endpoint.ip(),
                 peer.endpoint.port(),
@@ -41,6 +45,7 @@ pub enum TunnelEndpointData {
     #[serde(rename = "openvpn")]
     OpenVpn(OpenVpnEndpointData),
     /// Extra parameters for a Wireguard tunnel endpoint.
+    #[cfg(feature = "wireguard")]
     #[serde(rename = "wireguard")]
     Wireguard(WireguardEndpointData),
 }
@@ -50,6 +55,7 @@ impl From<OpenVpnEndpointData> for TunnelEndpointData {
     }
 }
 
+#[cfg(feature = "wireguard")]
 impl From<WireguardEndpointData> for TunnelEndpointData {
     fn from(endpoint_data: WireguardEndpointData) -> TunnelEndpointData {
         TunnelEndpointData::Wireguard(endpoint_data)
@@ -63,6 +69,7 @@ impl fmt::Display for TunnelEndpointData {
                 write!(f, "OpenVPN ")?;
                 openvpn_data.fmt(f)
             }
+            #[cfg(feature = "wireguard")]
             TunnelEndpointData::Wireguard(wireguard_data) => {
                 write!(f, "Wireguard ")?;
                 wireguard_data.fmt(f)

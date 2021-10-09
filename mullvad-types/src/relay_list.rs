@@ -9,9 +9,11 @@ use std::{
     fmt,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 };
+#[cfg(feature = "wireguard")]
+use talpid_types::net::wireguard;
 use talpid_types::net::{
     openvpn::{ProxySettings, ShadowsocksProxySettings},
-    wireguard, Endpoint, TransportProtocol,
+    Endpoint, TransportProtocol,
 };
 
 
@@ -96,16 +98,18 @@ pub struct Relay {
 pub struct RelayTunnels {
     #[cfg_attr(target_os = "android", jnix(skip))]
     pub openvpn: Vec<OpenVpnEndpointData>,
+    #[cfg(feature = "wireguard")]
     pub wireguard: Vec<WireguardEndpointData>,
 }
 
 impl RelayTunnels {
     pub fn is_empty(&self) -> bool {
-        self.openvpn.is_empty() && self.wireguard.is_empty()
+        self.openvpn.is_empty() && if cfg!(feature = "wireguard") { self.wireguard.is_empty() } else { true }
     }
 
     pub fn clear(&mut self) {
         self.openvpn.clear();
+        #[cfg(feature = "wireguard")]
         self.wireguard.clear();
     }
 }
@@ -130,6 +134,7 @@ impl fmt::Display for OpenVpnEndpointData {
 }
 
 /// Data needed to connect to a WireGuard endpoint at a [`Relay`].
+#[cfg(feature = "wireguard")]
 #[derive(Clone, Eq, PartialEq, Hash, Deserialize, Serialize, Debug)]
 #[cfg_attr(target_os = "android", derive(IntoJava))]
 #[cfg_attr(target_os = "android", jnix(package = "net.mullvad.mullvadvpn.model"))]
@@ -151,6 +156,7 @@ fn default_wg_transport() -> TransportProtocol {
     TransportProtocol::Udp
 }
 
+#[cfg(feature = "wireguard")]
 impl fmt::Display for WireguardEndpointData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(

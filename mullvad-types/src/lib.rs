@@ -9,6 +9,7 @@ pub mod relay_list;
 pub mod settings;
 pub mod states;
 pub mod version;
+#[cfg(feature = "wireguard")]
 pub mod wireguard;
 
 mod custom_tunnel;
