@@ -12,7 +12,9 @@ use crate::{
 use jnix::{FromJava, IntoJava};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fmt};
-use talpid_types::net::{openvpn::ProxySettings, IpVersion, TransportProtocol, TunnelType};
+#[cfg(feature = "wireguard")]
+use talpid_types::net::IpVersion;
+use talpid_types::net::{openvpn::ProxySettings, TransportProtocol, TunnelType};
 
 
 pub trait Match<T> {
@@ -257,11 +259,15 @@ impl RelayConstraints {
 impl fmt::Display for RelayConstraints {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self.tunnel_protocol {
-            Constraint::Any => if cfg!(feature = "wireguard") { write!(
-                f,
-                "Any tunnel protocol with OpenVPN through {} and WireGuard through {}",
-                &self.openvpn_constraints, &self.wireguard_constraints,
-            )? } else {
+            Constraint::Any => {
+                #[cfg(feature = "wireguard")]
+                write!(
+                    f,
+                    "Any tunnel protocol with OpenVPN through {} and WireGuard through {}",
+                    &self.openvpn_constraints, &self.wireguard_constraints,
+                )?
+
+                #[cfg(not(feature = "wireguard"))]
                 write!(
                     f,
                     "Any tunnel protocol with OpenVPN through {}",

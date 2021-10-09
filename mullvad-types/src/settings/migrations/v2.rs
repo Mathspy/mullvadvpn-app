@@ -1,4 +1,5 @@
 use super::{Error, Result, SettingsVersion};
+#[cfg(feature = "wireguard")]
 use crate::wireguard::{MAX_ROTATION_INTERVAL, MIN_ROTATION_INTERVAL};
 use std::time::Duration;
 
@@ -38,10 +39,12 @@ impl super::SettingsMigration for Migration {
 
         if let Some(interval) = automatic_rotation {
             let new_ivl = match Duration::from_secs(60 * 60 * interval) {
+                #[cfg(feature = "wireguard")]
                 ivl if ivl < MIN_ROTATION_INTERVAL => {
                     log::warn!("Increasing key rotation interval since it is below minimum");
                     MIN_ROTATION_INTERVAL
                 }
+                #[cfg(feature = "wireguard")]
                 ivl if ivl > MAX_ROTATION_INTERVAL => {
                     log::warn!("Decreasing key rotation interval since it is above maximum");
                     MAX_ROTATION_INTERVAL

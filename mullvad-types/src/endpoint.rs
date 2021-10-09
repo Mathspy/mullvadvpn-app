@@ -1,13 +1,14 @@
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt,
-    net::{Ipv4Addr, Ipv6Addr},
-};
+use std::fmt;
 #[cfg(feature = "wireguard")]
-use talpid_types::net::wireguard;
-use talpid_types::net::{Endpoint, TransportProtocol};
+use std::net::{Ipv4Addr, Ipv6Addr};
+#[cfg(feature = "wireguard")]
+use talpid_types::net::{wireguard, TransportPort};
+use talpid_types::net::Endpoint;
 
-use crate::relay_list::{OpenVpnEndpointData, WireguardEndpointData};
+#[cfg(feature = "wireguard")]
+use crate::relay_list::WireguardEndpointData;
+use crate::relay_list::OpenVpnEndpointData;
 
 
 /// Contains server data needed to connect to a single mullvad endpoint

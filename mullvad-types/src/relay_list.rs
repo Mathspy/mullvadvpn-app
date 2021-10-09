@@ -104,7 +104,11 @@ pub struct RelayTunnels {
 
 impl RelayTunnels {
     pub fn is_empty(&self) -> bool {
-        self.openvpn.is_empty() && if cfg!(feature = "wireguard") { self.wireguard.is_empty() } else { true }
+        #[cfg(feature = "wireguard")]
+        self.openvpn.is_empty() && self.wireguard.is_empty()
+
+        #[cfg(not(feature = "wireguard"))]
+        self.openvpn.is_empty()
     }
 
     pub fn clear(&mut self) {

@@ -14,7 +14,9 @@ use serde_json;
 use std::net::IpAddr;
 #[cfg(target_os = "windows")]
 use std::{collections::HashSet, path::PathBuf};
-use talpid_types::net::{self, openvpn, GenericTunnelOptions};
+#[cfg(feature = "wireguard")]
+use talpid_types::net::self;
+use talpid_types::net::{openvpn, GenericTunnelOptions};
 
 mod migrations;
 
