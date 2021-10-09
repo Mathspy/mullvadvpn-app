@@ -75,6 +75,7 @@ fn main() {
         _ => panic!("Unsupported platform: {}", target_os),
     };
 
+    #[cfg(feature = "wireguard")]
     println!("cargo:rustc-link-lib{}=wg", link_type);
 }
 
