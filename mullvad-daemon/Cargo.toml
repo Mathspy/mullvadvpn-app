@@ -37,7 +37,7 @@ talpid-platform-metadata = { path = "../talpid-platform-metadata" }
 
 [target.'cfg(not(target_os="android"))'.dependencies]
 triggered = "0.1.1"
-mullvad-management-interface = { path = "../mullvad-management-interface" }
+mullvad-management-interface = { path = "../mullvad-management-interface", default-features = false }
 
 [target.'cfg(target_os="android")'.dependencies]
 android_logger = "0.8"
@@ -66,4 +66,4 @@ OriginalFilename = "mullvad-daemon.exe"
 
 [features]
 default = ["wireguard"]
-wireguard = ["talpid-core/wireguard", "talpid-types/wireguard"]
+wireguard = ["talpid-core/wireguard", "talpid-types/wireguard", "mullvad-management-interface/wireguard"]
