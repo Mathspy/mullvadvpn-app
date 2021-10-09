@@ -166,6 +166,7 @@ impl ConnectingState {
         tunnel_close_event_rx.fuse()
     }
 
+    #[cfg_attr(feature = "wireguard", allow(unused_variables))]
     fn wait_for_tunnel_monitor(
         tunnel_monitor: TunnelMonitor,
         retry_attempt: u32,

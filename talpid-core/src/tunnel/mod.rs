@@ -26,6 +26,7 @@ pub mod wireguard;
 pub(crate) mod tun_provider;
 
 const OPENVPN_LOG_FILENAME: &str = "openvpn.log";
+#[cfg(feature = "wireguard")]
 const WIREGUARD_LOG_FILENAME: &str = "wireguard.log";
 
 /// Results from operations in the tunnel module.
@@ -103,7 +104,7 @@ pub struct TunnelMonitor {
 impl TunnelMonitor {
     /// Creates a new `TunnelMonitor` that connects to the given remote and notifies `on_event`
     /// on tunnel state changes.
-    #[cfg_attr(any(target_os = "android", windows), allow(unused_variables))]
+    #[cfg_attr(any(target_os = "android", windows, feature = "wireguard"), allow(unused_variables))]
     pub fn start<L>(
         runtime: tokio::runtime::Handle,
         tunnel_parameters: &TunnelParameters,

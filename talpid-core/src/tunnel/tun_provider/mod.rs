@@ -19,6 +19,7 @@ cfg_if! {
         use self::imp::{UnixTun, UnixTunProvider};
         pub use self::imp::Error;
 
+        #[cfg(feature = "wireguard")]
         pub type Tun = UnixTun;
         pub type TunProvider = UnixTunProvider;
     } else {
