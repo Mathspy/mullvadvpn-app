@@ -30,7 +30,7 @@ tokio-stream = "0.1"
 uuid = { version = "0.8", features = ["v4"] }
 
 mullvad-paths = { path = "../mullvad-paths" }
-mullvad-types = { path = "../mullvad-types" }
+mullvad-types = { path = "../mullvad-types", default-features = false }
 mullvad-rpc = { path = "../mullvad-rpc", default-features = false }
 talpid-core = { path = "../talpid-core", default-features = false }
 talpid-types = { path = "../talpid-types", default-features = false }
@@ -66,4 +66,4 @@ OriginalFilename = "mullvad-daemon.exe"
 
 [features]
 default = ["wireguard"]
-wireguard = ["mullvad-rpc/wireguard", "talpid-core/wireguard", "talpid-types/wireguard", "mullvad-management-interface/wireguard"]
+wireguard = ["mullvad-types/wireguard", "mullvad-rpc/wireguard", "talpid-core/wireguard", "talpid-types/wireguard", "mullvad-management-interface/wireguard"]
