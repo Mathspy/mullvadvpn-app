@@ -57,6 +57,7 @@ fn main() {
     declare_library(WINNET_DIR_VAR, WINNET_BUILD_DIR, "winnet");
     let lib_dir = manifest_dir().join("../build/lib/x86_64-pc-windows-msvc");
     println!("cargo:rustc-link-search={}", &lib_dir.display());
+    #[cfg(feature = "wireguard")]
     println!("cargo:rustc-link-lib=dylib=libwg");
 }
 
