@@ -8,8 +8,11 @@ edition = "2021"
 publish = false
 
 [features]
+default = ["wireguard"]
+
 # Allow the API server to use to be configured via MULLVAD_API_HOST and MULLVAD_API_ADDR.
 api-override = []
+wireguard = ["mullvad-types/wireguard", "talpid-types/wireguard"]
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
@@ -30,8 +33,8 @@ urlencoding = "1"
 webpki = { version = "0.21", features =  [] }
 lazy_static = "1.1.0"
 
-mullvad-types = { path = "../mullvad-types" }
-talpid-types = { path = "../talpid-types" }
+mullvad-types = { path = "../mullvad-types", default-features = false }
+talpid-types = { path = "../talpid-types", default-features = false }
 
 [target.'cfg(target_os="macos")'.dependencies]
 tokio-stream = { version = "0.1", features = ["io-util"] }
