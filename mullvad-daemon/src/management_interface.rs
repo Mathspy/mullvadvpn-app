@@ -479,6 +479,7 @@ impl ManagementService for ManagementServiceImpl {
     // WireGuard key management
     //
 
+    #[cfg(feature = "wireguard")]
     async fn set_wireguard_rotation_interval(
         &self,
         request: Request<types::Duration>,
@@ -502,6 +503,7 @@ impl ManagementService for ManagementServiceImpl {
             .map_err(map_settings_error)
     }
 
+    #[cfg(feature = "wireguard")]
     async fn reset_wireguard_rotation_interval(&self, _: Request<()>) -> ServiceResult<()> {
         log::debug!("reset_wireguard_rotation_interval");
         let (tx, rx) = oneshot::channel();
@@ -512,6 +514,7 @@ impl ManagementService for ManagementServiceImpl {
             .map_err(map_settings_error)
     }
 
+    #[cfg(feature = "wireguard")]
     async fn generate_wireguard_key(&self, _: Request<()>) -> ServiceResult<types::KeygenEvent> {
         // TODO: return error for TooManyKeys, GenerationFailure
         // on success, simply return the new key or nil
@@ -524,6 +527,7 @@ impl ManagementService for ManagementServiceImpl {
             .map_err(map_daemon_error)
     }
 
+    #[cfg(feature = "wireguard")]
     async fn get_wireguard_key(&self, _: Request<()>) -> ServiceResult<types::PublicKey> {
         log::debug!("get_wireguard_key");
         let (tx, rx) = oneshot::channel();
@@ -535,6 +539,7 @@ impl ManagementService for ManagementServiceImpl {
         }
     }
 
+    #[cfg(feature = "wireguard")]
     async fn verify_wireguard_key(&self, _: Request<()>) -> ServiceResult<bool> {
         log::debug!("verify_wireguard_key");
         let (tx, rx) = oneshot::channel();

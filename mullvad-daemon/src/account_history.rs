@@ -147,12 +147,17 @@ impl AccountHistory {
             .unwrap_or_else(|_| None))
     }
 
+    #[cfg(feature = "wireguard")]
+    type TryFormatV2Output = Result<Option<(AccountToken, Option<WireguardData>)>>;
+    #[cfg(not(feature = "wireguard"))]
+    type TryFormatV2Output = Result<Option<(AccountToken)>>;
     fn try_format_v2(
         reader: &mut io::BufReader<fs::File>,
-    ) -> Result<Option<(AccountToken, Option<WireguardData>)>> {
+    ) -> TryFormatV2Output {
         #[derive(Serialize, Deserialize, Clone, Debug)]
         pub struct AccountEntry {
             pub account: AccountToken,
+            #[cfg(feature = "wireguard")]
             pub wireguard: Option<WireguardData>,
         }
         reader.seek(io::SeekFrom::Start(0)).map_err(Error::Read)?;
@@ -160,7 +165,7 @@ impl AccountHistory {
             .map(|entries: Vec<AccountEntry>| {
                 entries
                     .first()
-                    .map(|entry| (entry.account.clone(), entry.wireguard.clone()))
+                    .map(|entry| (entry.account.clone(), #[cfg(feature = "wireguard")]entry.wireguard.clone()))
             })
             .unwrap_or_else(|_| None))
     }

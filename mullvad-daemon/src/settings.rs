@@ -220,6 +220,7 @@ impl SettingsPersister {
         self.update(should_save).await
     }
 
+    #[cfg(feature = "wireguard")]
     pub async fn set_wireguard(&mut self, wireguard: Option<WireguardData>) -> Result<bool, Error> {
         let should_save = self.settings.set_wireguard(wireguard);
         self.update(should_save).await
@@ -282,6 +283,7 @@ impl SettingsPersister {
         self.update(should_save).await
     }
 
+    #[cfg(feature = "wireguard")]
     pub async fn set_wireguard_rotation_interval(
         &mut self,
         interval: Option<RotationInterval>,

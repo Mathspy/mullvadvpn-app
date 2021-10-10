@@ -58,7 +58,9 @@ const UPDATE_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const EXPONENTIAL_BACKOFF_INITIAL: Duration = Duration::from_secs(16);
 const EXPONENTIAL_BACKOFF_FACTOR: u32 = 8;
 
+#[cfg(feature = "wireguard")]
 const DEFAULT_WIREGUARD_PORT: u16 = 51820;
+#[cfg(feature = "wireguard")]
 const WIREGUARD_EXIT_CONSTRAINTS: WireguardConstraints = WireguardConstraints {
     port: Constraint::Only(TransportPort {
         protocol: TransportProtocol::Udp,
@@ -67,6 +69,7 @@ const WIREGUARD_EXIT_CONSTRAINTS: WireguardConstraints = WireguardConstraints {
     ip_version: Constraint::Only(IpVersion::V4),
     entry_location: None,
 };
+#[cfg(feature = "wireguard")]
 const WIREGUARD_TCP_PORTS: [(u16, u16); 3] = [(80, 80), (443, 443), (5001, 5001)];
 
 
@@ -125,6 +128,7 @@ impl ParsedRelays {
                         longitude,
                     });
 
+                    #[cfg(feature = "wireguard")]
                     for wg_tunnel in &relay.tunnels.wireguard {
                         relay_with_location
                             .tunnels
@@ -258,6 +262,7 @@ impl RelaySelector {
         relay_constraints: &RelayConstraints,
         bridge_state: BridgeState,
         retry_attempt: u32,
+        #[cfg(feature = "wireguard")]
         wg_key_exists: bool,
     ) -> Result<(Relay, MullvadEndpoint), Error> {
         let mut exit_relay_constraints = relay_constraints.clone();
@@ -303,6 +308,7 @@ impl RelaySelector {
             }),
         )?;
 
+        #[cfg(feature = "wireguard")]
         let mut entry_endpoint = entry_endpoint.or_else(|| {
             if !wg_entry_is_subset
                 && relay_constraints
@@ -311,7 +317,7 @@ impl RelaySelector {
                     .is_some()
             {
                 if let MullvadEndpoint::Wireguard { peer, .. } = &endpoint {
-                    self.select_entry_endpoint(#[cfg(feature = "wireguard")]Some(peer), &relay_constraints, retry_attempt)
+                    self.select_entry_endpoint(Some(peer), &relay_constraints, retry_attempt)
                 } else {
                     None
                 }
@@ -820,6 +826,7 @@ impl RelaySelector {
             .collect()
     }
 
+    #[cfg(feature = "wireguard")]
     fn matching_wireguard_tunnels(
         tunnels: &RelayTunnels,
         constraints: &WireguardConstraints,
@@ -918,6 +925,7 @@ impl RelaySelector {
         new_wg_endpoint()
     }
 
+    #[cfg(feature = "wireguard")]
     fn wg_data_to_endpoint(
         &mut self,
         relay: &Relay,

@@ -241,8 +241,10 @@ pub enum DaemonCommand {
     /// Set DNS options or servers to use
     SetDnsOptions(ResponseTx<(), settings::Error>, DnsOptions),
     /// Set MTU for wireguard tunnels
+    #[cfg(feature = "wireguard")]
     SetWireguardMtu(ResponseTx<(), settings::Error>, Option<u16>),
     /// Set automatic key rotation interval for wireguard tunnels
+    #[cfg(feature = "wireguard")]
     SetWireguardRotationInterval(ResponseTx<(), settings::Error>, Option<RotationInterval>),
     /// Get the daemon settings
     GetSettings(oneshot::Sender<Settings>),
@@ -514,6 +516,7 @@ pub trait EventListener {
     fn notify_app_version(&self, app_version_info: AppVersionInfo);
 
     /// Notify clients of a key generation event.
+    #[cfg(feature = "wireguard")]
     fn notify_key_event(&self, key_event: KeygenEvent);
 }
 
@@ -534,6 +537,7 @@ pub struct Daemon<L: EventListener> {
     account: account::AccountHandle,
     rpc_runtime: mullvad_rpc::MullvadRpcRuntime,
     rpc_handle: mullvad_rpc::rest::MullvadRestHandle,
+    #[cfg(feature = "wireguard")]
     wireguard_key_manager: wireguard::KeyManager,
     version_updater_handle: version_check::VersionUpdaterHandle,
     relay_selector: relays::RelaySelector,
@@ -730,6 +734,7 @@ where
             }
         });
 
+        #[cfg(feature = "wireguard")]
         let wireguard_key_manager = wireguard::KeyManager::new(
             internal_event_tx.clone(),
             api_availability.clone(),
@@ -767,6 +772,7 @@ where
             account,
             rpc_runtime,
             rpc_handle,
+            #[cfg(feature = "wireguard")]
             wireguard_key_manager,
             version_updater_handle,
             relay_selector,
@@ -778,6 +784,7 @@ where
             cache_dir,
         };
 
+        #[cfg(feature = "wireguard")]
         daemon.ensure_wireguard_keys_for_current_account().await;
 
         Ok(daemon)
@@ -1021,6 +1028,7 @@ where
                             &constraints,
                             self.settings.get_bridge_state(),
                             retry_attempt,
+                            #[cfg(feature = "wireguard")]
                             self.settings.get_wireguard().is_some(),
                         )
                         .ok();
@@ -1036,6 +1044,7 @@ where
                         self.last_generated_relay = Some(relay);
                         match result {
                             Ok(result) => Ok(result),
+                            #[cfg(feature = "wireguard")]
                             Err(Error::NoKeyAvailable) => {
                                 Err(ParameterGenerationError::NoWireguardKey)
                             }
@@ -1138,6 +1147,7 @@ where
                 }
                 .into())
             }
+            #[cfg(feature = "wireguard")]
             MullvadEndpoint::Wireguard {
                 peer,
                 exit_peer,
@@ -1227,13 +1237,18 @@ where
             SetBridgeState(tx, bridge_state) => self.on_set_bridge_state(tx, bridge_state).await,
             SetEnableIpv6(tx, enable_ipv6) => self.on_set_enable_ipv6(tx, enable_ipv6).await,
             SetDnsOptions(tx, dns_servers) => self.on_set_dns_options(tx, dns_servers).await,
+            #[cfg(feature = "wireguard")]
             SetWireguardMtu(tx, mtu) => self.on_set_wireguard_mtu(tx, mtu).await,
+            #[cfg(feature = "wireguard")]
             SetWireguardRotationInterval(tx, interval) => {
                 self.on_set_wireguard_rotation_interval(tx, interval).await
             }
             GetSettings(tx) => self.on_get_settings(tx),
+            #[cfg(feature = "wireguard")]
             GenerateWireguardKey(tx) => self.on_generate_wireguard_key(tx).await,
+            #[cfg(feature = "wireguard")]
             GetWireguardKey(tx) => self.on_get_wireguard_key(tx).await,
+            #[cfg(feature = "wireguard")]
             VerifyWireguardKey(tx) => self.on_verify_wireguard_key(tx).await,
             GetVersionInfo(tx) => self.on_get_version_info(tx).await,
             GetCurrentVersion(tx) => self.on_get_current_version(tx),
@@ -1327,6 +1342,7 @@ where
         }
     }
 
+    #[cfg(feature = "wireguard")]
     async fn ensure_key_rotation(&mut self) {
         let token = match self.settings.get_account_token() {
             Some(token) => token,
@@ -1628,6 +1644,7 @@ where
                 );
             }
 
+            #[cfg(feature = "wireguard")]
             if let Some(previous_token) = previous_token {
                 if let Some(previous_key) = self
                     .settings
@@ -1649,12 +1666,14 @@ where
                     });
                 }
             }
+            #[cfg(feature = "wireguard")]
             if let Err(error) = self.settings.set_wireguard(None).await {
                 log::error!(
                     "{}",
                     error.display_chain_with_msg("Error resetting WireGuard key")
                 );
             }
+            #[cfg(feature = "wireguard")]
             self.ensure_wireguard_keys_for_current_account().await;
         }
         Ok(account_changed)
@@ -1679,7 +1698,7 @@ where
 
     // Remove the key associated with the current account, if there is one.
     // This does not modify settings or account history.
-    #[cfg(not(target_os = "android"))]
+    #[cfg(all(feature = "wireguard", not(target_os = "android")))]
     fn remove_current_key_rpc(&self) -> impl std::future::Future<Output = Result<(), Error>> {
         let remove_key = if let Some(token) = self.settings.get_account_token() {
             if let Some(wg_data) = self.settings.get_wireguard() {
