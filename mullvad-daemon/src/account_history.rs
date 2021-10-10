@@ -40,6 +40,10 @@ lazy_static::lazy_static! {
     static ref ACCOUNT_REGEX: Regex = Regex::new(r"^[0-9]+$").unwrap();
 }
 
+#[cfg(feature = "wireguard")]
+type TryFormatV2Output = Result<Option<(AccountToken, Option<WireguardData>)>>;
+#[cfg(not(feature = "wireguard"))]
+type TryFormatV2Output = Result<Option<(AccountToken)>>;
 
 impl AccountHistory {
     pub async fn new(
@@ -147,10 +151,6 @@ impl AccountHistory {
             .unwrap_or_else(|_| None))
     }
 
-    #[cfg(feature = "wireguard")]
-    type TryFormatV2Output = Result<Option<(AccountToken, Option<WireguardData>)>>;
-    #[cfg(not(feature = "wireguard"))]
-    type TryFormatV2Output = Result<Option<(AccountToken)>>;
     fn try_format_v2(
         reader: &mut io::BufReader<fs::File>,
     ) -> TryFormatV2Output {

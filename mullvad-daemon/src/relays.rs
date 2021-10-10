@@ -951,6 +951,7 @@ impl RelaySelector {
         })
     }
 
+    #[cfg(feature = "wireguard")]
     fn get_address_for_wireguard_relay(
         &mut self,
         relay: &Relay,
@@ -962,6 +963,7 @@ impl RelaySelector {
         }
     }
 
+    #[cfg(feature = "wireguard")]
     fn get_port_for_wireguard_relay(
         &mut self,
         data: &WireguardEndpointData,
