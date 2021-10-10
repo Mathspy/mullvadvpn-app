@@ -1770,6 +1770,7 @@ where
 
         #[cfg(feature = "wireguard")]
         let remove_key = self.remove_current_key_rpc();
+        #[cfg(feature = "wireguard")]
         tokio::spawn(async move {
             if let Err(error) = remove_key.await {
                 log::error!(
