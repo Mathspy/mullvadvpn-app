@@ -21,9 +21,11 @@ use mullvad_types::{
 use parking_lot::RwLock;
 #[cfg(windows)]
 use std::path::PathBuf;
+#[cfg(feature = "wireguard")]
+use std::convert::TryInto;
 use std::{
     cmp,
-    convert::{TryFrom, TryInto},
+    convert::TryFrom,
     sync::{mpsc, Arc},
     time::Duration,
 };
@@ -323,6 +325,7 @@ impl ManagementService for ManagementServiceImpl {
             .map_err(map_settings_error)
     }
 
+    #[cfg_attr(not(feature = "wireguard"), allow(unused_variables))]
     async fn set_wireguard_mtu(&self, request: Request<u32>) -> ServiceResult<()> {
         #[cfg(feature = "wireguard")] {
             let mtu = request.into_inner();
@@ -485,6 +488,7 @@ impl ManagementService for ManagementServiceImpl {
     // WireGuard key management
     //
 
+    #[cfg_attr(not(feature = "wireguard"), allow(unused_variables))]
     async fn set_wireguard_rotation_interval(
         &self,
         request: Request<types::Duration>,

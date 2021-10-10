@@ -80,9 +80,11 @@ const TARGET_START_STATE_FILE: &str = "target-start-state.json";
 const TUNNEL_STATE_MACHINE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Timeout for first WireGuard key pushing
+#[cfg(feature = "wireguard")]
 const FIRST_KEY_PUSH_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Delay between generating a new WireGuard key and reconnecting
+#[cfg(feature = "wireguard")]
 const WG_RECONNECT_DELAY: Duration = Duration::from_secs(4 * 60);
 
 lazy_static::lazy_static! {
@@ -755,7 +757,7 @@ where
             .await
             .expect("Relay list updated thread has stopped unexpectedly");
 
-        let mut daemon = Daemon {
+        let daemon = Daemon {
             tunnel_command_tx,
             tunnel_state: TunnelState::Disconnected,
             target_state: initial_target_state,
@@ -784,6 +786,8 @@ where
             cache_dir,
         };
 
+        #[cfg(feature = "wireguard")]
+        let mut daemon = { daemon };
         #[cfg(feature = "wireguard")]
         daemon.ensure_wireguard_keys_for_current_account().await;
 
@@ -2567,6 +2571,7 @@ where
         }
     }
 
+    #[cfg(feature = "wireguard")]
     fn get_target_tunnel_type(&self) -> Option<TunnelType> {
         match self.tunnel_state {
             TunnelState::Connected {

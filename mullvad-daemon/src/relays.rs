@@ -7,12 +7,13 @@ use futures::{
     future::{Fuse, FusedFuture},
     FutureExt, SinkExt, StreamExt,
 };
+#[cfg(feature = "wireguard")]
 use ipnetwork::IpNetwork;
 use log::{debug, error, info, warn};
 use mullvad_rpc::{availability::ApiAvailabilityHandle, rest::MullvadRestHandle, RelayListProxy};
 #[cfg(feature = "wireguard")]
 use mullvad_types::{
-    relay_constraints::WireguardConstraints,
+    relay_constraints::{Set, WireguardConstraints},
     relay_list::WireguardEndpointData,
 };
 use mullvad_types::{
@@ -20,26 +21,28 @@ use mullvad_types::{
     location::Location,
     relay_constraints::{
         BridgeState, Constraint, InternalBridgeConstraints, LocationConstraint, Match,
-        OpenVpnConstraints, Providers, RelayConstraints, Set, TransportPort,
+        OpenVpnConstraints, Providers, RelayConstraints, TransportPort,
     },
     relay_list::{OpenVpnEndpointData, Relay, RelayList, RelayTunnels},
 };
 use parking_lot::Mutex;
 use rand::{self, rngs::ThreadRng, seq::SliceRandom, Rng};
+#[cfg(feature = "wireguard")]
+use std::net::SocketAddr;
 use std::{
     future::Future,
     io,
-    net::{IpAddr, SocketAddr},
+    net::IpAddr,
     path::{Path, PathBuf},
     sync::Arc,
     time::{self, Duration, Instant, SystemTime},
 };
 use talpid_core::future_retry::{retry_future, ExponentialBackoff, Jittered};
 #[cfg(feature = "wireguard")]
-use talpid_types::net::wireguard;
+use talpid_types::net::{all_of_the_internet, wireguard, IpVersion};
 use talpid_types::{
     net::{
-        all_of_the_internet, openvpn::ProxySettings, IpVersion, TransportProtocol,
+        openvpn::ProxySettings, TransportProtocol,
         TunnelType,
     },
     ErrorExt,
@@ -265,7 +268,9 @@ impl RelaySelector {
         #[cfg(feature = "wireguard")]
         wg_key_exists: bool,
     ) -> Result<(Relay, MullvadEndpoint), Error> {
-        let mut exit_relay_constraints = relay_constraints.clone();
+        let exit_relay_constraints = relay_constraints.clone();
+        #[cfg(feature = "wireguard")]
+        let mut exit_relay_constraints = { exit_relay_constraints };
         #[cfg(feature = "wireguard")]
         let wg_entry_is_subset = if let Some(entry_location) =
             exit_relay_constraints.wireguard_constraints.entry_location
@@ -292,7 +297,7 @@ impl RelaySelector {
             None
         };
 
-        let (exit_relay, mut endpoint) = self.get_tunnel_exit_endpoint(
+        let (exit_relay, endpoint) = self.get_tunnel_exit_endpoint(
             &exit_relay_constraints,
             bridge_state,
             retry_attempt,
@@ -307,6 +312,8 @@ impl RelaySelector {
                 }
             }),
         )?;
+        #[cfg(feature = "wireguard")]
+        let mut endpoint = { endpoint };
 
         #[cfg(feature = "wireguard")]
         let mut entry_endpoint = entry_endpoint.or_else(|| {
