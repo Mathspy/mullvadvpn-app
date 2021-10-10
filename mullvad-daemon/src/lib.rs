@@ -1768,6 +1768,7 @@ where
     async fn on_factory_reset(&mut self, tx: ResponseTx<(), Error>) {
         let mut last_error = Ok(());
 
+        #[cfg(feature = "wireguard")]
         let remove_key = self.remove_current_key_rpc();
         tokio::spawn(async move {
             if let Err(error) = remove_key.await {

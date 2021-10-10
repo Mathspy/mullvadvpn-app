@@ -762,6 +762,7 @@ impl RelaySelector {
                         &relay.tunnels,
                         constraints.openvpn_constraints,
                     ),
+                    #[cfg(feature = "wireguard")]
                     wireguard: vec![],
                 };
                 relay
@@ -897,6 +898,7 @@ impl RelaySelector {
                 .map(|endpoint| endpoint.into_mullvad_endpoint(relay.ipv4_addr_in.into()))
         };
 
+        #[cfg(feature = "wireguard")]
         let mut new_wg_endpoint = || {
             relay
                 .tunnels
@@ -912,13 +914,14 @@ impl RelaySelector {
         match constraints.tunnel_protocol {
             Constraint::Only(TunnelType::OpenVpn) => new_openvpn_endpoint(),
 
-            Constraint::Any => vec![new_openvpn_endpoint(), new_wg_endpoint()]
+            Constraint::Any => vec![new_openvpn_endpoint(), #[cfg(feature = "wireguard")]new_wg_endpoint()]
                 .into_iter()
                 .filter_map(|relay| relay)
                 .collect::<Vec<_>>()
                 .choose(&mut self.rng)
                 .cloned(),
 
+            #[cfg(feature = "wireguard")]
             Constraint::Only(TunnelType::Wireguard) => new_wg_endpoint(),
         }
         #[cfg(target_os = "android")]

@@ -43,7 +43,7 @@ lazy_static::lazy_static! {
 #[cfg(feature = "wireguard")]
 type TryFormatV2Output = Result<Option<(AccountToken, Option<WireguardData>)>>;
 #[cfg(not(feature = "wireguard"))]
-type TryFormatV2Output = Result<Option<(AccountToken)>>;
+type TryFormatV2Output = Result<Option<AccountToken>>;
 
 impl AccountHistory {
     pub async fn new(
@@ -82,6 +82,7 @@ impl AccountHistory {
                 Ok(_) | Err(_) => {
                     log::warn!("Failed to parse account history. Trying old formats",);
                     match Self::try_format_v2(&mut reader)? {
+                        #[cfg(feature = "wireguard")]
                         Some((token, migrated_data)) => {
                             if let Err(error) = settings.set_wireguard(migrated_data).await {
                                 log::error!(
@@ -93,6 +94,8 @@ impl AccountHistory {
                             }
                             Some(token)
                         }
+                        #[cfg(not(feature = "wireguard"))]
+                        Some(token) => Some(token),
                         None => Self::try_format_v1(&mut reader)?,
                     }
                 }
@@ -165,7 +168,15 @@ impl AccountHistory {
             .map(|entries: Vec<AccountEntry>| {
                 entries
                     .first()
-                    .map(|entry| (entry.account.clone(), #[cfg(feature = "wireguard")]entry.wireguard.clone()))
+                    .map(|entry| {
+                        #[cfg(feature = "wireguard")] {
+                            (entry.account.clone(), entry.wireguard.clone())
+                        }
+
+                        #[cfg(not(feature = "wireguard"))] {
+                            entry.account.clone()
+                        }
+                    })
             })
             .unwrap_or_else(|_| None))
     }
