@@ -18,7 +18,7 @@ parity-tokio-ipc = "0.9"
 tokio = { version = "1.8", features =  [ "rt" ] }
 
 openvpn-plugin = { version = "0.4", features = ["serde", "log", "auth-failed-event"] }
-talpid-types = { path = "../talpid-types" }
+talpid-types = { path = "../talpid-types", default-features = false }
 
 tonic = "0.5"
 tower = "0.4"
@@ -38,3 +38,7 @@ CompanyName = "Mullvad VPN AB"
 LegalCopyright = "(c) 2021 Mullvad VPN AB"
 InternalName = "talpid-openvpn-plugin"
 OriginalFilename = "talpid_openvpn_plugin.dll"
+
+[features]
+default = ["wireguard"]
+wireguard = ["talpid-types/wireguard"]
