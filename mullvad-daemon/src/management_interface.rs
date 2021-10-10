@@ -22,12 +22,11 @@ use parking_lot::RwLock;
 #[cfg(windows)]
 use std::path::PathBuf;
 #[cfg(feature = "wireguard")]
-use std::convert::TryInto;
+use std::{convert::TryInto, time::Duration};
 use std::{
     cmp,
     convert::TryFrom,
     sync::{mpsc, Arc},
-    time::Duration,
 };
 use talpid_types::ErrorExt;
 use tokio_stream::wrappers::{ReceiverStream, UnboundedReceiverStream};
