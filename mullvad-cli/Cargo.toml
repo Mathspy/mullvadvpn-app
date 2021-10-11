@@ -22,11 +22,11 @@ natord = "1.0.9"
 serde = "1.0"
 itertools = "0.10"
 
-mullvad-types = { path = "../mullvad-types" }
-mullvad-paths = { path = "../mullvad-paths" }
-talpid-types = { path = "../talpid-types" }
+mullvad-types = { path = "../mullvad-types", default-features = false }
+mullvad-paths = { path = "../mullvad-paths"}
+talpid-types = { path = "../talpid-types", default-features = false }
 
-mullvad-management-interface = { path = "../mullvad-management-interface" }
+mullvad-management-interface = { path = "../mullvad-management-interface", default-features = false }
 tokio = { version = "1.8", features =  [ "rt-multi-thread" ] }
 
 [target.'cfg(windows)'.build-dependencies]
@@ -39,3 +39,7 @@ CompanyName = "Mullvad VPN AB"
 LegalCopyright = "(c) 2021 Mullvad VPN AB"
 InternalName = "mullvad-cli"
 OriginalFilename = "mullvad.exe"
+
+[features]
+default = ["wireguard"]
+wireguard = ["mullvad-types/wireguard", "talpid-types/wireguard", "mullvad-management-interface/wireguard"]
