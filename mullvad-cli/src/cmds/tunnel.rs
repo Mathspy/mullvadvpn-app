@@ -1,7 +1,13 @@
-use crate::{format::print_keygen_event, new_rpc_client, Command, Error, Result};
+#[cfg(feature = "wireguard")]
+use crate::{format::print_keygen_event, Error};
+use crate::{new_rpc_client, Command, Result};
 use clap::value_t;
-use mullvad_management_interface::types::{self, Timestamp, TunnelOptions};
+#[cfg(feature = "wireguard")]
+use mullvad_management_interface::types::{self, Timestamp};
+use mullvad_management_interface::types::TunnelOptions;
+#[cfg(feature = "wireguard")]
 use mullvad_types::wireguard::DEFAULT_ROTATION_INTERVAL;
+#[cfg(feature = "wireguard")]
 use std::{convert::TryFrom, time::Duration};
 
 pub struct Tunnel;
@@ -13,17 +19,21 @@ impl Command for Tunnel {
     }
 
     fn clap_subcommand(&self) -> clap::App<'static, 'static> {
-        clap::SubCommand::with_name(self.name())
+        let subcommand = clap::SubCommand::with_name(self.name())
             .about("Manage tunnel specific options")
             .setting(clap::AppSettings::SubcommandRequiredElseHelp)
-            .subcommand(create_openvpn_subcommand())
-            .subcommand(create_wireguard_subcommand())
-            .subcommand(create_ipv6_subcommand())
+            .subcommand(create_openvpn_subcommand());
+
+        #[cfg(feature = "wireguard")]
+        let subcommand = subcommand.subcommand(create_wireguard_subcommand());
+
+        subcommand.subcommand(create_ipv6_subcommand())
     }
 
     async fn run(&self, matches: &clap::ArgMatches<'_>) -> Result<()> {
         match matches.subcommand() {
             ("openvpn", Some(openvpn_matches)) => Self::handle_openvpn_cmd(openvpn_matches).await,
+            #[cfg(feature = "wireguard")]
             ("wireguard", Some(wg_matches)) => Self::handle_wireguard_cmd(wg_matches).await,
             ("ipv6", Some(ipv6_matches)) => Self::handle_ipv6_cmd(ipv6_matches).await,
             _ => {
@@ -33,6 +43,7 @@ impl Command for Tunnel {
     }
 }
 
+#[cfg(feature = "wireguard")]
 fn create_wireguard_subcommand() -> clap::App<'static, 'static> {
     let subcmd = clap::SubCommand::with_name("wireguard")
         .about("Manage options for Wireguard tunnels")
@@ -49,6 +60,7 @@ fn create_wireguard_subcommand() -> clap::App<'static, 'static> {
     }
 }
 
+#[cfg(feature = "wireguard")]
 fn create_wireguard_mtu_subcommand() -> clap::App<'static, 'static> {
     clap::SubCommand::with_name("mtu")
         .about("Configure the MTU of the wireguard tunnel")
@@ -60,6 +72,7 @@ fn create_wireguard_mtu_subcommand() -> clap::App<'static, 'static> {
         )
 }
 
+#[cfg(feature = "wireguard")]
 fn create_wireguard_keys_subcommand() -> clap::App<'static, 'static> {
     clap::SubCommand::with_name("key")
         .about("Manage your wireguard key")
@@ -69,7 +82,7 @@ fn create_wireguard_keys_subcommand() -> clap::App<'static, 'static> {
         .subcommand(create_wireguard_keys_rotation_interval_subcommand())
 }
 
-#[cfg(windows)]
+#[cfg(all(feature = "wireguard", windows))]
 fn create_wireguard_use_wg_nt_subcommand() -> clap::App<'static, 'static> {
     clap::SubCommand::with_name("use-wireguard-nt")
         .about("Enable or disable wireguard-nt")
@@ -85,6 +98,7 @@ fn create_wireguard_use_wg_nt_subcommand() -> clap::App<'static, 'static> {
         )
 }
 
+#[cfg(feature = "wireguard")]
 fn create_wireguard_keys_rotation_interval_subcommand() -> clap::App<'static, 'static> {
     clap::SubCommand::with_name("rotation-interval")
         .about("Manage automatic key rotation (given in hours)")
@@ -147,6 +161,7 @@ impl Tunnel {
         }
     }
 
+    #[cfg(feature = "wireguard")]
     async fn handle_wireguard_cmd(matches: &clap::ArgMatches<'_>) -> Result<()> {
         match matches.subcommand() {
             ("mtu", Some(matches)) => match matches.subcommand() {
@@ -181,6 +196,7 @@ impl Tunnel {
         }
     }
 
+    #[cfg(feature = "wireguard")]
     async fn process_wireguard_mtu_get() -> Result<()> {
         let tunnel_options = Self::get_tunnel_options().await?;
         let mtu = tunnel_options.wireguard.unwrap().mtu;
@@ -195,6 +211,7 @@ impl Tunnel {
         Ok(())
     }
 
+    #[cfg(feature = "wireguard")]
     async fn process_wireguard_mtu_set(matches: &clap::ArgMatches<'_>) -> Result<()> {
         let mtu = value_t!(matches.value_of("mtu"), u16).unwrap_or_else(|e| e.exit());
         let mut rpc = new_rpc_client().await?;
@@ -203,6 +220,7 @@ impl Tunnel {
         Ok(())
     }
 
+    #[cfg(feature = "wireguard")]
     async fn process_wireguard_mtu_unset() -> Result<()> {
         let mut rpc = new_rpc_client().await?;
         rpc.set_wireguard_mtu(0).await?;
@@ -210,7 +228,7 @@ impl Tunnel {
         Ok(())
     }
 
-    #[cfg(windows)]
+    #[cfg(all(feature = "wireguard", windows))]
     async fn process_wireguard_use_wg_nt_get() -> Result<()> {
         let tunnel_options = Self::get_tunnel_options().await?;
         if tunnel_options.wireguard.unwrap().use_wireguard_nt {
@@ -221,7 +239,7 @@ impl Tunnel {
         Ok(())
     }
 
-    #[cfg(windows)]
+    #[cfg(all(feature = "wireguard", windows))]
     async fn process_wireguard_use_wg_nt_set(matches: &clap::ArgMatches<'_>) -> Result<()> {
         let new_state = matches.value_of("policy").unwrap() == "on";
         let mut rpc = new_rpc_client().await?;
@@ -230,6 +248,7 @@ impl Tunnel {
         Ok(())
     }
 
+    #[cfg(feature = "wireguard")]
     async fn process_wireguard_key_check() -> Result<()> {
         let mut rpc = new_rpc_client().await?;
         let key = rpc.get_wireguard_key(()).await;
@@ -263,6 +282,7 @@ impl Tunnel {
         Ok(())
     }
 
+    #[cfg(feature = "wireguard")]
     async fn process_wireguard_key_generate() -> Result<()> {
         let mut rpc = new_rpc_client().await?;
         let keygen_event = rpc.generate_wireguard_key(()).await?;
@@ -270,6 +290,7 @@ impl Tunnel {
         Ok(())
     }
 
+    #[cfg(feature = "wireguard")]
     async fn process_wireguard_rotation_interval_get() -> Result<()> {
         let tunnel_options = Self::get_tunnel_options().await?;
         match tunnel_options.wireguard.unwrap().rotation_interval {
@@ -285,6 +306,7 @@ impl Tunnel {
         Ok(())
     }
 
+    #[cfg(feature = "wireguard")]
     async fn process_wireguard_rotation_interval_set(matches: &clap::ArgMatches<'_>) -> Result<()> {
         let rotate_interval =
             value_t!(matches.value_of("interval"), u64).unwrap_or_else(|e| e.exit());
@@ -297,6 +319,7 @@ impl Tunnel {
         Ok(())
     }
 
+    #[cfg(feature = "wireguard")]
     async fn process_wireguard_rotation_interval_reset() -> Result<()> {
         let mut rpc = new_rpc_client().await?;
         rpc.reset_wireguard_rotation_interval(()).await?;
@@ -382,6 +405,7 @@ impl Tunnel {
         Ok(())
     }
 
+    #[cfg(feature = "wireguard")]
     fn format_key_timestamp(timestamp: &Timestamp) -> String {
         let ndt = chrono::NaiveDateTime::from_timestamp(timestamp.seconds, timestamp.nanos as u32);
         let utc = chrono::DateTime::<chrono::Utc>::from_utc(ndt, chrono::Utc);
@@ -389,6 +413,7 @@ impl Tunnel {
     }
 }
 
+#[cfg(feature = "wireguard")]
 fn duration_hours(duration: &Duration) -> u64 {
     duration.as_secs() / 60 / 60
 }
